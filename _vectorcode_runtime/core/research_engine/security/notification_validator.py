@@ -1,0 +1,383 @@
+"""
+Security validation for notification service URLs.
+
+This module provides validation for user-configured notification service URLs
+to prevent Server-Side Request Forgery (SSRF) attacks and other security issues.
+"""
+
+import ipaddress
+
+__all__ = [
+    "NotificationURLValidationError",
+    "NotificationURLValidator",
+]
+
+import socket
+from concurrent.futures import ThreadPoolExecutor, TimeoutError
+from typing import Optional, Tuple
+from urllib.parse import urlparse
+from loguru import logger
+from urllib3.exceptions import LocationParseError
+from urllib3.util import parse_url
+
+from .ip_ranges import PRIVATE_IP_RANGES as _PRIVATE_IP_RANGES
+from .ssrf_validator import RFC_FORBIDDEN_URL_CHARS_RE, redact_url_for_log
+
+
+class NotificationURLValidationError(ValueError):
+    """Raised when a notification service URL fails security validation."""
+
+    pass
+
+
+class NotificationURLValidator:
+    """Validates notification service URLs to prevent SSRF and other attacks."""
+
+    # Dangerous protocols that should never be used for notifications
+    BLOCKED_SCHEMES = (
+        "file",  # Local file access
+        "ftp",  # FTP can be abused for SSRF
+        "ftps",  # Secure FTP can be abused for SSRF
+        "data",  # Data URIs can leak sensitive data
+        "javascript",  # XSS/code execution
+        "vbscript",  # XSS/code execution
+        "about",  # Browser internal
+        "blob",  # Browser internal
+    )
+
+    # Allowed protocols for notification services
+    ALLOWED_SCHEMES = (
+        "http",  # Webhook services
+        "https",  # Webhook services (preferred)
+        "mailto",  # Email notifications
+        "discord",  # Discord webhooks
+        "slack",  # Slack webhooks
+        "telegram",  # Telegram bot API
+        "gotify",  # Gotify notifications
+        "pushover",  # Pushover notifications
+        "ntfy",  # ntfy.sh notifications (http)
+        "ntfys",  # ntfy.sh notifications (https)
+        "matrix",  # Matrix protocol
+        "mattermost",  # Mattermost webhooks
+        "rocketchat",  # Rocket.Chat webhooks
+        "teams",  # Microsoft Teams
+        "json",  # Generic JSON webhooks
+        "xml",  # Generic XML webhooks
+        "form",  # Form-encoded webhooks
+    )
+
+    # Reuse shared private IP range definitions
+    PRIVATE_IP_RANGES = _PRIVATE_IP_RANGES
+
+    @staticmethod
+    def _ip_matches_blocked_range(ip, allow_private_ips: bool = False) -> bool:
+        """Block-decision for a parsed IP, delegating to
+        ``ssrf_validator.is_ip_blocked`` so the two validators share a
+        single source of truth.
+
+        Honors:
+        - ALWAYS_BLOCKED_METADATA_IPS (cloud metadata, absolute)
+        - is_nat64_wrapped_metadata_ip (NAT64-wrapped IMDS, absolute)
+        - security.allow_nat64 env carve-out for the two NAT64 prefixes
+        - allow_private_ips: when True, RFC1918 / CGNAT / loopback /
+          link-local / IPv6 ULA are allowed BUT the two absolute checks
+          above still fire. This closes the historical bypass where
+          ``allow_private_ips=True`` skipped the host check entirely
+          and let metadata IPs through the notification path.
+        """
+        from .ssrf_validator import is_ip_blocked
+
+        return is_ip_blocked(str(ip), allow_private_ips=allow_private_ips)
+
+    @staticmethod
+    def _is_private_ip(hostname: str, allow_private_ips: bool = False) -> bool:
+        """
+        Check if hostname resolves to a private IP address.
+
+        Args:
+            hostname: Hostname to check
+            allow_private_ips: When True, RFC1918 / CGNAT / loopback /
+                link-local / IPv6 ULA are NOT considered private. Cloud
+                metadata IPs and NAT64-wrapped metadata IPs are blocked
+                regardless — the operator opt-in cannot license IMDS
+                exposure.
+
+        Returns:
+            True if hostname is a private IP or localhost (subject to
+            allow_private_ips), or wraps a metadata IP unconditionally
+        """
+        # Localhost-string shortcuts only apply when the operator hasn't
+        # opted into private-IP reachability. With allow_private_ips=True
+        # we let the IP path (DNS-resolved or literal) make the decision
+        # so metadata-IP literals like "169.254.169.254" still block.
+        if not allow_private_ips and hostname.lower() in (
+            "localhost",
+            "127.0.0.1",
+            "::1",
+            "0.0.0.0",
+            "::",
+        ):
+            return True
+
+        # Try to parse as IP address
+        try:
+            ip = ipaddress.ip_address(hostname)
+            return NotificationURLValidator._ip_matches_blocked_range(
+                ip, allow_private_ips=allow_private_ips
+            )
+        except ValueError:
+            # Hostname - resolve to IP and check.
+            #
+            # NOTE: This is a best-effort, validation-time check. Apprise
+            # re-resolves the hostname when it actually sends the request
+            # (via requests/urllib3), so an attacker controlling DNS can
+            # serve a public IP here and a private IP at send time -- a
+            # classic DNS rebinding TOCTOU window. Apprise exposes no
+            # Session/adapter/DNS hook to close this in code without
+            # fragile monkey-patching of its plugin internals.
+            #
+            # Because the window cannot be closed cleanly in code, the
+            # whole outbound-notification path is gated behind an
+            # env-only master switch (LDR_NOTIFICATIONS_ALLOW_OUTBOUND,
+            # default off); turning it on is the operator's explicit
+            # risk-acceptance. See SECURITY.md "Notification Webhook
+            # SSRF" for details.
+            # Operators wanting to avoid the window entirely should
+            # prefer plugin schemes (discord://, slack://, ntfy://, ntfys://,
+            # gotify://, telegram://, mattermost://, etc.) that hardcode
+            # their endpoints instead of raw http(s):// webhooks.
+            #
+            # Use concurrent.futures for thread-safe timeout instead of
+            # socket.setdefaulttimeout() which is process-global and not
+            # thread-safe.
+            try:
+                executor = ThreadPoolExecutor(max_workers=1)
+                try:
+                    future = executor.submit(
+                        socket.getaddrinfo,
+                        hostname,
+                        None,
+                        socket.AF_UNSPEC,
+                        socket.SOCK_STREAM,
+                    )
+                    resolved_ips = future.result(timeout=5)
+                finally:
+                    executor.shutdown(wait=False, cancel_futures=True)
+                for _family, _, _, _, sockaddr in resolved_ips:
+                    ip = ipaddress.ip_address(sockaddr[0])
+                    if NotificationURLValidator._ip_matches_blocked_range(
+                        ip, allow_private_ips=allow_private_ips
+                    ):
+                        return True
+            except (socket.gaierror, OSError, TimeoutError):
+                logger.warning(
+                    "DNS resolution failed for hostname {} — "
+                    "allowing request (unable to determine if private)",
+                    hostname,
+                )
+            return False
+
+    @staticmethod
+    def validate_service_url(
+        url: str, allow_private_ips: bool = False
+    ) -> Tuple[bool, Optional[str]]:
+        """
+        Validate a notification service URL for security issues.
+
+        This function prevents SSRF attacks by validating that service URLs
+        use safe protocols and don't target private/internal infrastructure.
+
+        Args:
+            url: Service URL to validate (e.g., "discord://webhook_id/token")
+            allow_private_ips: Whether to allow private IPs (default: False)
+                              Set to True for development/testing environments
+
+        Returns:
+            Tuple of (is_valid, error_message)
+            - is_valid: True if URL passes security checks
+            - error_message: None if valid, error description if invalid
+
+        Examples:
+            >>> validate_service_url("discord://webhook_id/token")
+            (True, None)
+
+            >>> validate_service_url("file:///etc/passwd")
+            (False, "Blocked unsafe protocol: file")
+
+            >>> validate_service_url("http://localhost:5000/webhook")
+            (False, "Blocked private/internal IP address: localhost")
+        """
+        if not url or not isinstance(url, str):
+            return False, "Service URL must be a non-empty string"
+
+        # Strip whitespace (must run before the RFC-illegal char check
+        # so legitimate URLs with surrounding whitespace are not rejected).
+        url = url.strip()
+
+        # Reject URLs containing characters that drive parser-differential
+        # SSRF bypasses (backslash, whitespace, control bytes) — see
+        # GHSA-g23j-2vwm-5c25. The URL is omitted from the log line because
+        # userinfo (RFC 3986 §3.2.1) may contain credentials and rejected
+        # URLs are by definition adversarial-shaped.
+        if RFC_FORBIDDEN_URL_CHARS_RE.search(url):
+            logger.warning(
+                "Blocked notification URL containing RFC-illegal characters"
+            )
+            return (
+                False,
+                "URL contains characters that are not allowed (whitespace, backslash, or control bytes)",
+            )
+
+        # Parse URL
+        try:
+            parsed = urlparse(url)
+        except Exception as e:
+            logger.warning("Failed to parse service URL")
+            return False, f"Invalid URL format: {e}"
+
+        # Check for scheme
+        if not parsed.scheme:
+            return False, "Service URL must have a protocol (e.g., https://)"
+
+        scheme = parsed.scheme.lower()
+
+        # Check for blocked schemes
+        if scheme in NotificationURLValidator.BLOCKED_SCHEMES:
+            logger.warning(
+                f"Blocked unsafe notification protocol: {scheme} in URL: {redact_url_for_log(url)}"
+            )
+            return False, f"Blocked unsafe protocol: {scheme}"
+
+        # Check for allowed schemes
+        if scheme not in NotificationURLValidator.ALLOWED_SCHEMES:
+            logger.warning(
+                f"Unknown notification protocol: {scheme} in URL: {redact_url_for_log(url)}"
+            )
+            return (
+                False,
+                f"Unsupported protocol: {scheme}. "
+                f"Allowed: {', '.join(NotificationURLValidator.ALLOWED_SCHEMES[:5])}...",
+            )
+
+        # For HTTP/HTTPS, check for private IPs (SSRF prevention).
+        # Use urllib3 (the parser ``requests`` uses internally) instead of
+        # urlparse for hostname extraction — urlparse is vulnerable to
+        # parser-differential bypasses like ``http://127.0.0.1\@1.1.1.1``
+        # (GHSA-g23j-2vwm-5c25). For non-HTTP schemes (Apprise transports
+        # like discord://, slack://, mailto://) Apprise handles the URL
+        # itself and the parser-differential doesn't apply.
+        #
+        # The host check runs even when ``allow_private_ips=True`` —
+        # ``_is_private_ip`` propagates that flag, so RFC1918 / loopback
+        # are allowed through, but cloud-metadata IPs and NAT64-wrapped
+        # metadata still block. ``allow_private_ips=True`` is an
+        # operator opt-in for self-hosted webhooks on internal networks,
+        # not for IMDS exfiltration.
+        if scheme in ("http", "https"):
+            try:
+                u3 = parse_url(url)
+            except LocationParseError:
+                logger.warning(
+                    "Blocked notification URL: urllib3 parser rejected it"
+                )
+                return False, "Invalid URL format (parser rejected)"
+            hostname = u3.host
+            # Authority must be ASCII printable (forward-defence vs urllib3
+            # ever loosening its IDN handling).
+            if hostname and any(
+                ord(c) < 0x20 or ord(c) > 0x7E for c in hostname
+            ):
+                logger.warning(
+                    "Blocked notification URL with non-ASCII / control bytes in host"
+                )
+                return False, "URL host contains disallowed characters"
+            if hostname and hostname.startswith("[") and hostname.endswith("]"):
+                hostname = hostname[1:-1]
+            if hostname:
+                hostname = hostname.rstrip(".")
+            if hostname and NotificationURLValidator._is_private_ip(
+                hostname, allow_private_ips=allow_private_ips
+            ):
+                logger.warning(
+                    f"Blocked private/internal IP in notification URL: "
+                    f"{hostname}"
+                )
+                return (
+                    False,
+                    f"Blocked private/internal IP address: {hostname}",
+                )
+
+        # Passed all security checks
+        return True, None
+
+    @staticmethod
+    def validate_service_url_strict(
+        url: str, allow_private_ips: bool = False
+    ) -> bool:
+        """
+        Strict validation that raises an exception on invalid URLs.
+
+        Args:
+            url: Service URL to validate
+            allow_private_ips: Whether to allow private IPs (default: False)
+
+        Returns:
+            True if valid
+
+        Raises:
+            NotificationURLValidationError: If URL fails security validation
+        """
+        is_valid, error_message = NotificationURLValidator.validate_service_url(
+            url, allow_private_ips
+        )
+
+        if not is_valid:
+            raise NotificationURLValidationError(
+                f"Notification service URL validation failed: {error_message}"
+            )
+
+        return True
+
+    @staticmethod
+    def validate_multiple_urls(
+        urls: str, allow_private_ips: bool = False, separator: str = ","
+    ) -> Tuple[bool, Optional[str]]:
+        """
+        Validate multiple comma-separated service URLs.
+
+        Args:
+            urls: Comma-separated service URLs
+            allow_private_ips: Whether to allow private IPs (default: False)
+            separator: URL separator (default: ",")
+
+        Returns:
+            Tuple of (all_valid, error_message)
+            - all_valid: True if all URLs pass validation
+            - error_message: None if all valid, first error if any invalid
+        """
+        if not urls or not isinstance(urls, str):
+            return False, "Service URLs must be a non-empty string"
+
+        # Split by separator and strip whitespace
+        url_list = [url.strip() for url in urls.split(separator) if url.strip()]
+
+        if not url_list:
+            return False, "No valid URLs found after parsing"
+
+        # Validate each URL
+        for url in url_list:
+            is_valid, error_message = (
+                NotificationURLValidator.validate_service_url(
+                    url, allow_private_ips
+                )
+            )
+
+            if not is_valid:
+                # Return first error found
+                return (
+                    False,
+                    f"Invalid URL '{redact_url_for_log(url)}': {error_message}",
+                )
+
+        # All URLs passed validation
+        return True, None

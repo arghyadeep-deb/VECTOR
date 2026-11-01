@@ -1,0 +1,731 @@
+# VECTOR OAuth Provider Registry — 80+ providers
+# Inspired by nango's providers.yaml structure (logic reimplemented in Python from public OAuth docs)
+# auth_mode: oauth2 | oauth1 | api_key | basic
+# Categories: dev_tools | productivity | communication | social | finance | crm | storage | ai | ecommerce | other
+
+# ── Dev Tools ──────────────────────────────────────────────────────────────────
+
+github:
+  name: "GitHub"
+  category: dev_tools
+  auth_mode: oauth2
+  auth_url: https://github.com/login/oauth/authorize
+  token_url: https://github.com/login/oauth/access_token
+  scopes: [repo, read:user, user:email, notifications]
+  user_info_url: https://api.github.com/user
+
+gitlab:
+  name: "GitLab"
+  category: dev_tools
+  auth_mode: oauth2
+  auth_url: https://gitlab.com/oauth/authorize
+  token_url: https://gitlab.com/oauth/token
+  scopes: [read_user, read_api, read_repository, write_repository]
+  user_info_url: https://gitlab.com/api/v4/user
+  extra_params: {response_type: code}
+
+bitbucket:
+  name: "Bitbucket"
+  category: dev_tools
+  auth_mode: oauth2
+  auth_url: https://bitbucket.org/site/oauth2/authorize
+  token_url: https://bitbucket.org/site/oauth2/access_token
+  scopes: [account, repository, pullrequest, issue]
+  user_info_url: https://api.bitbucket.org/2.0/user
+
+vercel:
+  name: "Vercel"
+  category: dev_tools
+  auth_mode: oauth2
+  auth_url: https://vercel.com/oauth/authorize
+  token_url: https://api.vercel.com/v2/oauth/access_token
+  scopes: []
+
+netlify:
+  name: "Netlify"
+  category: dev_tools
+  auth_mode: oauth2
+  auth_url: https://app.netlify.com/authorize
+  token_url: https://api.netlify.com/oauth/token
+  scopes: []
+
+digitalocean:
+  name: "DigitalOcean"
+  category: dev_tools
+  auth_mode: oauth2
+  auth_url: https://cloud.digitalocean.com/v1/oauth/authorize
+  token_url: https://cloud.digitalocean.com/v1/oauth/token
+  scopes: [read, write]
+  user_info_url: https://api.digitalocean.com/v2/account
+
+heroku:
+  name: "Heroku"
+  category: dev_tools
+  auth_mode: oauth2
+  auth_url: https://id.heroku.com/oauth/authorize
+  token_url: https://id.heroku.com/oauth/token
+  scopes: [global]
+  user_info_url: https://api.heroku.com/account
+
+render:
+  name: "Render"
+  category: dev_tools
+  auth_mode: api_key
+  api_base: https://api.render.com/v1
+  key_env: RENDER_API_KEY
+
+sentry:
+  name: "Sentry"
+  category: dev_tools
+  auth_mode: oauth2
+  auth_url: https://sentry.io/oauth/authorize/
+  token_url: https://sentry.io/oauth/token/
+  scopes: [project:read, org:read, event:read, team:read]
+  user_info_url: https://sentry.io/api/0/
+
+datadog:
+  name: "Datadog"
+  category: dev_tools
+  auth_mode: api_key
+  api_base: https://api.datadoghq.com/api/v1
+  key_env: DD_API_KEY
+
+pagerduty:
+  name: "PagerDuty"
+  category: dev_tools
+  auth_mode: oauth2
+  auth_url: https://app.pagerduty.com/oauth/authorize
+  token_url: https://app.pagerduty.com/oauth/token
+  scopes: [read, write]
+  user_info_url: https://api.pagerduty.com/users/me
+
+launchdarkly:
+  name: "LaunchDarkly"
+  category: dev_tools
+  auth_mode: api_key
+  api_base: https://app.launchdarkly.com/api/v2
+  key_env: LAUNCHDARKLY_API_KEY
+
+cloudflare:
+  name: "Cloudflare"
+  category: dev_tools
+  auth_mode: api_key
+  api_base: https://api.cloudflare.com/client/v4
+  key_env: CLOUDFLARE_API_TOKEN
+
+# ── Productivity ───────────────────────────────────────────────────────────────
+
+notion:
+  name: "Notion"
+  category: productivity
+  auth_mode: oauth2
+  auth_url: https://api.notion.com/v1/oauth/authorize
+  token_url: https://api.notion.com/v1/oauth/token
+  scopes: []
+  extra_params: {response_type: code, owner: user}
+
+linear:
+  name: "Linear"
+  category: productivity
+  auth_mode: oauth2
+  auth_url: https://linear.app/oauth/authorize
+  token_url: https://api.linear.app/oauth/token
+  scopes: [read, write, issues:create]
+
+airtable:
+  name: "Airtable"
+  category: productivity
+  auth_mode: oauth2
+  auth_url: https://airtable.com/oauth2/v1/authorize
+  token_url: https://airtable.com/oauth2/v1/token
+  scopes: [data.records:read, data.records:write, schema.bases:read]
+  pkce: true
+
+asana:
+  name: "Asana"
+  category: productivity
+  auth_mode: oauth2
+  auth_url: https://app.asana.com/-/oauth_authorize
+  token_url: https://app.asana.com/-/oauth_token
+  scopes: []
+  user_info_url: https://app.asana.com/api/1.0/users/me
+
+trello:
+  name: "Trello"
+  category: productivity
+  auth_mode: oauth2
+  auth_url: https://trello.com/1/authorize
+  token_url: https://trello.com/1/OAuthGetAccessToken
+  scopes: [read, write]
+  extra_params: {expiration: never, name: VECTOR}
+
+monday:
+  name: "Monday.com"
+  category: productivity
+  auth_mode: oauth2
+  auth_url: https://auth.monday.com/oauth2/authorize
+  token_url: https://auth.monday.com/oauth2/token
+  scopes: [me:read, boards:read, boards:write]
+  user_info_url: https://api.monday.com/v2
+
+clickup:
+  name: "ClickUp"
+  category: productivity
+  auth_mode: oauth2
+  auth_url: https://app.clickup.com/api
+  token_url: https://api.clickup.com/api/v2/oauth/token
+  scopes: []
+  user_info_url: https://api.clickup.com/api/v2/user
+
+todoist:
+  name: "Todoist"
+  category: productivity
+  auth_mode: oauth2
+  auth_url: https://todoist.com/oauth/authorize
+  token_url: https://todoist.com/oauth/access_token
+  scopes: [data:read_write, data:delete, project:delete]
+  user_info_url: https://api.todoist.com/rest/v2/user
+
+figma:
+  name: "Figma"
+  category: productivity
+  auth_mode: oauth2
+  auth_url: https://www.figma.com/oauth
+  token_url: https://www.figma.com/api/oauth/token
+  scopes: [file_read]
+  user_info_url: https://api.figma.com/v1/me
+
+miro:
+  name: "Miro"
+  category: productivity
+  auth_mode: oauth2
+  auth_url: https://miro.com/oauth/authorize
+  token_url: https://api.miro.com/v1/oauth/token
+  scopes: [boards:read, boards:write]
+  user_info_url: https://api.miro.com/v2/users/me
+
+basecamp:
+  name: "Basecamp"
+  category: productivity
+  auth_mode: oauth2
+  auth_url: https://launchpad.37signals.com/authorization/new
+  token_url: https://launchpad.37signals.com/authorization/token
+  scopes: []
+  user_info_url: https://launchpad.37signals.com/authorization.json
+
+jira:
+  name: "Jira (Atlassian)"
+  category: productivity
+  auth_mode: oauth2
+  auth_url: https://auth.atlassian.com/authorize
+  token_url: https://auth.atlassian.com/oauth/token
+  scopes: [read:jira-work, write:jira-work, offline_access]
+  extra_params: {audience: api.atlassian.com, prompt: consent}
+
+confluence:
+  name: "Confluence (Atlassian)"
+  category: productivity
+  auth_mode: oauth2
+  auth_url: https://auth.atlassian.com/authorize
+  token_url: https://auth.atlassian.com/oauth/token
+  scopes: [read:confluence-content.all, write:confluence-content, offline_access]
+  extra_params: {audience: api.atlassian.com, prompt: consent}
+
+typeform:
+  name: "Typeform"
+  category: productivity
+  auth_mode: oauth2
+  auth_url: https://api.typeform.com/oauth/authorize
+  token_url: https://api.typeform.com/oauth/token
+  scopes: [accounts:read, forms:read, responses:read]
+  user_info_url: https://api.typeform.com/me
+
+calendly:
+  name: "Calendly"
+  category: productivity
+  auth_mode: oauth2
+  auth_url: https://auth.calendly.com/oauth/authorize
+  token_url: https://auth.calendly.com/oauth/token
+  scopes: []
+  user_info_url: https://api.calendly.com/users/me
+  pkce: true
+
+# ── Communication ──────────────────────────────────────────────────────────────
+
+slack:
+  name: "Slack"
+  category: communication
+  auth_mode: oauth2
+  auth_url: https://slack.com/oauth/v2/authorize
+  token_url: https://slack.com/api/oauth.v2.access
+  scopes: [channels:read, chat:write, users:read, im:read, im:write]
+  user_info_url: https://slack.com/api/auth.test
+
+discord:
+  name: "Discord"
+  category: communication
+  auth_mode: oauth2
+  auth_url: https://discord.com/api/oauth2/authorize
+  token_url: https://discord.com/api/oauth2/token
+  scopes: [identify, email, guilds, messages.read]
+  user_info_url: https://discord.com/api/users/@me
+
+microsoft:
+  name: "Microsoft (Outlook + OneDrive + Teams)"
+  category: communication
+  auth_mode: oauth2
+  auth_url: https://login.microsoftonline.com/common/oauth2/v2.0/authorize
+  token_url: https://login.microsoftonline.com/common/oauth2/v2.0/token
+  scopes: [User.Read, Mail.Read, Mail.Send, Calendars.Read, Files.Read.All, offline_access]
+  user_info_url: https://graph.microsoft.com/v1.0/me
+
+zoom:
+  name: "Zoom"
+  category: communication
+  auth_mode: oauth2
+  auth_url: https://zoom.us/oauth/authorize
+  token_url: https://zoom.us/oauth/token
+  scopes: [meeting:read, meeting:write, recording:read, user:read]
+  user_info_url: https://api.zoom.us/v2/users/me
+
+discord_bot:
+  name: "Discord Bot"
+  category: communication
+  auth_mode: api_key
+  api_base: https://discord.com/api/v10
+  key_env: DISCORD_BOT_TOKEN
+
+telegram_bot:
+  name: "Telegram Bot"
+  category: communication
+  auth_mode: api_key
+  api_base: https://api.telegram.org
+  key_env: TELEGRAM_BOT_TOKEN
+
+twilio:
+  name: "Twilio"
+  category: communication
+  auth_mode: api_key
+  api_base: https://api.twilio.com/2010-04-01
+  key_env: TWILIO_AUTH_TOKEN
+
+sendgrid:
+  name: "SendGrid"
+  category: communication
+  auth_mode: api_key
+  api_base: https://api.sendgrid.com/v3
+  key_env: SENDGRID_API_KEY
+
+mailchimp:
+  name: "Mailchimp"
+  category: communication
+  auth_mode: oauth2
+  auth_url: https://login.mailchimp.com/oauth2/authorize
+  token_url: https://login.mailchimp.com/oauth2/token
+  scopes: []
+  user_info_url: https://login.mailchimp.com/oauth2/metadata
+
+# ── Social ─────────────────────────────────────────────────────────────────────
+
+google:
+  name: "Google (Gmail + Calendar + Drive)"
+  category: social
+  auth_mode: oauth2
+  auth_url: https://accounts.google.com/o/oauth2/v2/auth
+  token_url: https://oauth2.googleapis.com/token
+  scopes:
+    - openid
+    - email
+    - profile
+    - https://www.googleapis.com/auth/gmail.readonly
+    - https://www.googleapis.com/auth/gmail.send
+    - https://www.googleapis.com/auth/calendar
+    - https://www.googleapis.com/auth/drive.readonly
+  extra_params: {access_type: offline, prompt: consent}
+  user_info_url: https://www.googleapis.com/oauth2/v2/userinfo
+
+twitter:
+  name: "Twitter / X (OAuth 2.0)"
+  category: social
+  auth_mode: oauth2
+  auth_url: https://twitter.com/i/oauth2/authorize
+  token_url: https://api.twitter.com/2/oauth2/token
+  scopes: [tweet.read, tweet.write, users.read, offline.access]
+  pkce: true
+
+twitter_v1:
+  name: "Twitter (API v1.1 — OAuth 1.0a)"
+  category: social
+  auth_mode: oauth1
+  request_token_url: https://api.twitter.com/oauth/request_token
+  auth_url: https://api.twitter.com/oauth/authorize
+  access_token_url: https://api.twitter.com/oauth/access_token
+  token_url: https://api.twitter.com/oauth/access_token
+
+linkedin:
+  name: "LinkedIn"
+  category: social
+  auth_mode: oauth2
+  auth_url: https://www.linkedin.com/oauth/v2/authorization
+  token_url: https://www.linkedin.com/oauth/v2/accessToken
+  scopes: [r_liteprofile, r_emailaddress, w_member_social]
+  user_info_url: https://api.linkedin.com/v2/me
+
+reddit:
+  name: "Reddit"
+  category: social
+  auth_mode: oauth2
+  auth_url: https://www.reddit.com/api/v1/authorize
+  token_url: https://www.reddit.com/api/v1/access_token
+  scopes: [read, submit, identity, privatemessages]
+  extra_params: {duration: permanent}
+  user_info_url: https://oauth.reddit.com/api/v1/me
+
+spotify:
+  name: "Spotify"
+  category: social
+  auth_mode: oauth2
+  auth_url: https://accounts.spotify.com/authorize
+  token_url: https://accounts.spotify.com/api/token
+  scopes: [user-read-playback-state, user-read-currently-playing, playlist-read-private, user-library-read]
+  user_info_url: https://api.spotify.com/v1/me
+
+youtube:
+  name: "YouTube"
+  category: social
+  auth_mode: oauth2
+  auth_url: https://accounts.google.com/o/oauth2/v2/auth
+  token_url: https://oauth2.googleapis.com/token
+  scopes:
+    - https://www.googleapis.com/auth/youtube.readonly
+    - https://www.googleapis.com/auth/youtube.upload
+  extra_params: {access_type: offline, prompt: consent}
+  user_info_url: https://www.googleapis.com/oauth2/v2/userinfo
+
+facebook:
+  name: "Facebook"
+  category: social
+  auth_mode: oauth2
+  auth_url: https://www.facebook.com/v18.0/dialog/oauth
+  token_url: https://graph.facebook.com/v18.0/oauth/access_token
+  scopes: [public_profile, email, pages_manage_posts, pages_read_engagement]
+  user_info_url: https://graph.facebook.com/me
+
+instagram:
+  name: "Instagram (Meta)"
+  category: social
+  auth_mode: oauth2
+  auth_url: https://api.instagram.com/oauth/authorize
+  token_url: https://api.instagram.com/oauth/access_token
+  scopes: [user_profile, user_media]
+  user_info_url: https://graph.instagram.com/me
+
+pinterest:
+  name: "Pinterest"
+  category: social
+  auth_mode: oauth2
+  auth_url: https://www.pinterest.com/oauth/
+  token_url: https://api.pinterest.com/v5/oauth/token
+  scopes: [boards:read, pins:read, user_accounts:read]
+  pkce: true
+  user_info_url: https://api.pinterest.com/v5/user_account
+
+mastodon:
+  name: "Mastodon"
+  category: social
+  auth_mode: oauth2
+  auth_url: https://mastodon.social/oauth/authorize
+  token_url: https://mastodon.social/oauth/token
+  scopes: [read, write, follow]
+  user_info_url: https://mastodon.social/api/v1/accounts/verify_credentials
+
+tiktok:
+  name: "TikTok"
+  category: social
+  auth_mode: oauth2
+  auth_url: https://www.tiktok.com/v2/auth/authorize/
+  token_url: https://open.tiktokapis.com/v2/oauth/token/
+  scopes: [user.info.basic, video.list]
+  pkce: true
+  user_info_url: https://open.tiktokapis.com/v2/user/info/
+
+# ── Finance ────────────────────────────────────────────────────────────────────
+
+stripe:
+  name: "Stripe"
+  category: finance
+  auth_mode: oauth2
+  auth_url: https://connect.stripe.com/oauth/authorize
+  token_url: https://connect.stripe.com/oauth/token
+  scopes: [read_only]
+
+quickbooks:
+  name: "QuickBooks (Intuit)"
+  category: finance
+  auth_mode: oauth2
+  auth_url: https://appcenter.intuit.com/connect/oauth2
+  token_url: https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer
+  scopes: [com.intuit.quickbooks.accounting, openid, profile, email]
+  extra_params: {response_type: code}
+  user_info_url: https://accounts.platform.intuit.com/v1/openid_connect/userinfo
+
+xero:
+  name: "Xero"
+  category: finance
+  auth_mode: oauth2
+  auth_url: https://login.xero.com/identity/connect/authorize
+  token_url: https://identity.xero.com/connect/token
+  scopes: [openid, profile, email, accounting.transactions, accounting.contacts, offline_access]
+  user_info_url: https://api.xero.com/api.xro/2.0/Organisation
+
+paypal:
+  name: "PayPal"
+  category: finance
+  auth_mode: oauth2
+  auth_url: https://www.paypal.com/signin/authorize
+  token_url: https://api-m.paypal.com/v1/oauth2/token
+  scopes: [openid, profile, email]
+  user_info_url: https://api-m.paypal.com/v1/identity/oauth2/userinfo
+
+razorpay:
+  name: "Razorpay"
+  category: finance
+  auth_mode: api_key
+  api_base: https://api.razorpay.com/v1
+  key_env: RAZORPAY_KEY_ID
+
+cashfree:
+  name: "Cashfree"
+  category: finance
+  auth_mode: api_key
+  api_base: https://api.cashfree.com
+  key_env: CASHFREE_APP_ID
+
+plaid:
+  name: "Plaid"
+  category: finance
+  auth_mode: api_key
+  api_base: https://production.plaid.com
+  key_env: PLAID_SECRET
+
+# ── CRM & Sales ────────────────────────────────────────────────────────────────
+
+hubspot:
+  name: "HubSpot"
+  category: crm
+  auth_mode: oauth2
+  auth_url: https://app.hubspot.com/oauth/authorize
+  token_url: https://api.hubapi.com/oauth/v1/token
+  scopes: [crm.objects.contacts.read, crm.objects.deals.read, content]
+
+salesforce:
+  name: "Salesforce"
+  category: crm
+  auth_mode: oauth2
+  auth_url: https://login.salesforce.com/services/oauth2/authorize
+  token_url: https://login.salesforce.com/services/oauth2/token
+  scopes: [full, refresh_token]
+  user_info_url: https://login.salesforce.com/services/oauth2/userinfo
+
+pipedrive:
+  name: "Pipedrive"
+  category: crm
+  auth_mode: oauth2
+  auth_url: https://oauth.pipedrive.com/oauth/authorize
+  token_url: https://oauth.pipedrive.com/oauth/token
+  scopes: []
+  user_info_url: https://api.pipedrive.com/v1/users/me
+
+zendesk:
+  name: "Zendesk"
+  category: crm
+  auth_mode: oauth2
+  auth_url: https://subdomain.zendesk.com/oauth/authorizations/new
+  token_url: https://subdomain.zendesk.com/oauth/tokens
+  scopes: [read, write]
+
+intercom:
+  name: "Intercom"
+  category: crm
+  auth_mode: oauth2
+  auth_url: https://app.intercom.com/oauth
+  token_url: https://api.intercom.io/auth/eagle/token
+  scopes: []
+  user_info_url: https://api.intercom.io/me
+
+freshdesk:
+  name: "Freshdesk"
+  category: crm
+  auth_mode: api_key
+  api_base: https://domain.freshdesk.com/api/v2
+  key_env: FRESHDESK_API_KEY
+
+# ── Storage ────────────────────────────────────────────────────────────────────
+
+dropbox:
+  name: "Dropbox"
+  category: storage
+  auth_mode: oauth2
+  auth_url: https://www.dropbox.com/oauth2/authorize
+  token_url: https://api.dropboxapi.com/oauth2/token
+  scopes: []
+  pkce: true
+  extra_params: {token_access_type: offline}
+  user_info_url: https://api.dropboxapi.com/2/users/get_current_account
+
+box:
+  name: "Box"
+  category: storage
+  auth_mode: oauth2
+  auth_url: https://account.box.com/api/oauth2/authorize
+  token_url: https://api.box.com/oauth2/token
+  scopes: []
+  user_info_url: https://api.box.com/2.0/users/me
+
+# ── AI & ML ────────────────────────────────────────────────────────────────────
+
+openai:
+  name: "OpenAI"
+  category: ai
+  auth_mode: api_key
+  api_base: https://api.openai.com/v1
+  key_env: OPENAI_API_KEY
+
+anthropic:
+  name: "Anthropic"
+  category: ai
+  auth_mode: api_key
+  api_base: https://api.anthropic.com/v1
+  key_env: ANTHROPIC_API_KEY
+
+huggingface:
+  name: "Hugging Face"
+  category: ai
+  auth_mode: api_key
+  api_base: https://huggingface.co/api
+  key_env: HUGGINGFACE_API_KEY
+
+replicate:
+  name: "Replicate"
+  category: ai
+  auth_mode: api_key
+  api_base: https://api.replicate.com/v1
+  key_env: REPLICATE_API_TOKEN
+
+cohere:
+  name: "Cohere"
+  category: ai
+  auth_mode: api_key
+  api_base: https://api.cohere.ai/v1
+  key_env: COHERE_API_KEY
+
+groq:
+  name: "Groq"
+  category: ai
+  auth_mode: api_key
+  api_base: https://api.groq.com/openai/v1
+  key_env: GROQ_API_KEY
+
+mistral:
+  name: "Mistral AI"
+  category: ai
+  auth_mode: api_key
+  api_base: https://api.mistral.ai/v1
+  key_env: MISTRAL_API_KEY
+
+together_ai:
+  name: "Together AI"
+  category: ai
+  auth_mode: api_key
+  api_base: https://api.together.xyz/v1
+  key_env: TOGETHER_API_KEY
+
+stability_ai:
+  name: "Stability AI"
+  category: ai
+  auth_mode: api_key
+  api_base: https://api.stability.ai/v1
+  key_env: STABILITY_API_KEY
+
+deepseek:
+  name: "DeepSeek"
+  category: ai
+  auth_mode: api_key
+  api_base: https://api.deepseek.com/v1
+  key_env: DEEPSEEK_API_KEY
+
+openrouter:
+  name: "OpenRouter"
+  category: ai
+  auth_mode: api_key
+  api_base: https://openrouter.ai/api/v1
+  key_env: OPENROUTER_API_KEY
+
+elevenlabs:
+  name: "ElevenLabs"
+  category: ai
+  auth_mode: api_key
+  api_base: https://api.elevenlabs.io/v1
+  key_env: ELEVENLABS_API_KEY
+
+# ── E-commerce ─────────────────────────────────────────────────────────────────
+
+shopify:
+  name: "Shopify"
+  category: ecommerce
+  auth_mode: oauth2
+  auth_url: https://SHOP.myshopify.com/admin/oauth/authorize
+  token_url: https://SHOP.myshopify.com/admin/oauth/access_token
+  scopes: [read_products, read_orders, write_products]
+
+etsy:
+  name: "Etsy"
+  category: ecommerce
+  auth_mode: oauth2
+  auth_url: https://www.etsy.com/oauth/connect
+  token_url: https://api.etsy.com/v3/public/oauth/token
+  scopes: [listings_r, listings_w, transactions_r, profile_r]
+  pkce: true
+
+woocommerce:
+  name: "WooCommerce"
+  category: ecommerce
+  auth_mode: api_key
+  api_base: https://STORE.example.com/wp-json/wc/v3
+  key_env: WOOCOMMERCE_CONSUMER_KEY
+
+# ── Content & CMS ──────────────────────────────────────────────────────────────
+
+webflow:
+  name: "Webflow"
+  category: other
+  auth_mode: oauth2
+  auth_url: https://webflow.com/oauth/authorize
+  token_url: https://api.webflow.com/oauth/access_token
+  scopes: [cms:read, cms:write, sites:read]
+  user_info_url: https://api.webflow.com/v2/token/authorized_by
+
+wordpress:
+  name: "WordPress.com"
+  category: other
+  auth_mode: oauth2
+  auth_url: https://public-api.wordpress.com/oauth2/authorize
+  token_url: https://public-api.wordpress.com/oauth2/token
+  scopes: [global]
+  user_info_url: https://public-api.wordpress.com/rest/v1/me
+
+ghost:
+  name: "Ghost"
+  category: other
+  auth_mode: api_key
+  api_base: https://SITE.ghost.io/ghost/api/admin
+  key_env: GHOST_ADMIN_API_KEY
+
+docusign:
+  name: "DocuSign"
+  category: other
+  auth_mode: oauth2
+  auth_url: https://account.docusign.com/oauth/auth
+  token_url: https://account.docusign.com/oauth/token
+  scopes: [signature, impersonation]
+  user_info_url: https://account.docusign.com/oauth/userinfo

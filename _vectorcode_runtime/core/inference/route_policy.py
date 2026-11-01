@@ -1,0 +1,223 @@
+"""
+VECTOR routing policy — decide local-vs-cloud per task.
+
+Owner's policy:
+  * Security / privacy / RED-tier / secret-bearing tasks  -> Ollama LOCAL only
+    (never leaves the device).
+  * Simple/medium, non-sensitive tasks                    -> pooled cloud keys,
+    load-balanced across configured cloud providers (fastest reply).
+  * Heavy (COMPLEX/REASONING), non-sensitive tasks        -> cloud premium first
+    (anthropic/openai/deepseek), local vector-reasoning as fallback.
+    Flip with CONFIG['routing']['prefer_local_for_heavy'] = True.
+
+Reuses the dormant 15-dim complexity classifier in
+core/inference/smart_routing/classifier.py instead of a new heuristic.
+"""
+from __future__ import annotations
+
+__all__ = ["RoutePlan", "decide_route"]
+
+import itertools
+import re
+import sys
+from dataclasses import dataclass, field
+
+from loguru import logger
+
+from core.config import CONFIG
+from core.inference.llm_providers import PROVIDERS
+from core.secret_patterns import contains_known_key
+
+
+_SENSITIVE_DISTRICTS = {"security", "privacy"}
+# Best-quality providers for heavy/complex work, FREE-first (owner has no paid
+# OpenAI/Anthropic keys): GitHub Models serves gpt-5/o3 free via GITHUB_TOKEN;
+# Cerebras serves gpt-oss-120b free. Unconfigured/paid ones are filtered
+# out downstream, so keeping anthropic/openai/deepseek here is harmless (they
+# activate only if the owner ever adds those keys/balance).
+_PREMIUM_HEAVY = ["github_models", "cerebras", "anthropic", "openai", "deepseek"]
+# Substrings that mean "do not send this to a third party"
+_SECRET_MARKERS = (
+    "password", "api key", "api_key", "secret key", "private key",
+    "-----begin", "ssh-rsa", "client_secret", "bearer ", "credit card",
+    "cvv", "aadhaar", "passport number",
+)
+
+# Rotating offset so concurrent simple tasks spread across cloud providers
+_rr = itertools.count()
+
+
+@dataclass
+class RoutePlan:
+    tier: str                       # maps to model via existing ModelRouter/TIER_ROUTING
+    providers: list[str]            # ordered provider slugs to try
+    local_only: bool = False
+    reason: str = ""
+    signals: list[str] = field(default_factory=list)
+
+
+def _is_local(slug: str) -> bool:
+    # Only these three are genuinely local (data never leaves the device).
+    # Do NOT infer locality from base_url — a provider can be addressed at
+    # 127.0.0.1/localhost while still proxying every request to a real
+    # third-party API (e.g. freellmapi). Getting this wrong would make a
+    # proxying provider eligible for RED-tier/secret-bearing prompts.
+    return slug in {"ollama", "lmstudio", "vllm"}
+
+
+def _configured_cloud() -> list[str]:
+    return [slug for slug, p in PROVIDERS.items() if not _is_local(slug) and p.is_configured]
+
+
+def _looks_secret(text: str) -> bool:
+    low = text.lower()
+    return any(m in low for m in _SECRET_MARKERS) or contains_known_key(text)
+
+
+def _classify_tier(prompt: str) -> str:
+    """Return a tier, promoting compound reasoning and constrained planning."""
+    try:
+        from core.inference.smart_routing.classifier import classify
+        decision = classify(prompt)
+        if decision.tier is not None and decision.tier.value in ("COMPLEX", "REASONING"):
+            return decision.tier.value
+        signals = {signal.partition(" (")[0] for signal in decision.signals}
+        prompt_words = set(re.findall(r"[a-z]+", prompt.lower()))
+        compound_reasoning = "reasoning" in signals and bool(
+            {"constraints", "agentic-light"} & signals
+        )
+        implementation_request = {"code", "imperative"} <= signals or bool(re.search(
+            r"\b(?:write|provide|produce|debug|fix|correct)\b[^.!?]{0,160}\b(?:code|function|generator|parser|class)\b",
+            prompt, re.IGNORECASE,
+        ))
+        compound_implementation = implementation_request and (
+            "constraints" in signals
+            or (
+                prompt.count(",") >= 2
+                and any(term in prompt.lower() for term in ("test", "error", "edge case", "boundary"))
+            )
+        )
+        constrained_planning = "constraints" in signals and bool(
+            prompt_words & {
+                "feasible", "feasibility", "capacity", "schedule", "scheduling",
+                "bottleneck", "resource", "resources", "plan", "planning",
+            }
+        )
+        constrained_logic = "constraints" in signals and bool(
+            prompt_words & {"statement", "statements", "truth"}
+        ) and bool(prompt_words & {"true", "false"})
+        from core.inference.output_contracts import parse_output_contract
+        contract = parse_output_contract(prompt)
+        constrained_creative = (
+            {"creative", "constraints"} <= signals and len(prompt.split()) >= 40
+        ) or (contract.word_range is not None and contract.dialogue_lines is not None)
+        if constrained_creative or (len(prompt.split()) >= 15 and (
+            compound_reasoning or compound_implementation
+            or constrained_planning or constrained_logic
+        )):
+            return "COMPLEX"
+        if decision.tier is not None:
+            return decision.tier.value
+    except Exception as e:
+        logger.debug("[VECTOR][route_policy] classifier unavailable: {}", e)
+    # heuristic fallback: long prompts lean heavy
+    return "COMPLEX" if len(prompt.split()) > 200 else "MEDIUM"
+
+
+def decide_route(
+    prompt: str,
+    *,
+    district: str | None = None,
+    permission_tier: str | None = None,
+    sensitive: bool = False,
+    sensitivity_context: str | None = None,
+) -> RoutePlan:
+    """Classify the task in prompt; scan all supplied context for secrets."""
+    routing_cfg = CONFIG.get("routing", {})
+    prefer_local_heavy = bool(routing_cfg.get("prefer_local_for_heavy", False))
+    distribute = bool(routing_cfg.get("distribute_simple", True))
+
+    # ── 1. Sensitivity gate → local only ───────────────────────────────────
+    is_sensitive = (
+        sensitive
+        or (district or "").lower() in _SENSITIVE_DISTRICTS
+        or (permission_tier or "").upper() == "RED"
+        or _looks_secret(prompt)
+        or (sensitivity_context is not None and _looks_secret(sensitivity_context))
+    )
+    if is_sensitive:
+        return RoutePlan(
+            tier="reasoning",
+            providers=["ollama"],
+            local_only=True,
+            reason=f"sensitive (district={district}, tier={permission_tier}) → local only",
+            signals=["sensitive"],
+        )
+
+    cloud = _configured_cloud()
+
+    # ── 2. No cloud keys configured → local ────────────────────────────────
+    if not cloud:
+        return RoutePlan(tier="agentic", providers=["ollama"],
+                         reason="no cloud keys configured → local", signals=["offline"])
+
+    tier_class = _classify_tier(prompt)
+
+    # ── 3. Heavy (non-sensitive) → cloud premium first, local fallback ─────
+    if tier_class in ("COMPLEX", "REASONING"):
+        premium = [s for s in _PREMIUM_HEAVY if s in cloud]
+        rest = [s for s in cloud if s not in premium]
+        order = premium + rest
+        if prefer_local_heavy:
+            providers = ["ollama"] + order
+        else:
+            providers = order + ["ollama"]
+        return RoutePlan(tier="reasoning", providers=providers,
+                         reason=f"{tier_class} → {'local-first' if prefer_local_heavy else 'cloud-premium'}",
+                         signals=[tier_class])
+
+    # ── 4. Simple/medium → load-balanced pooled cloud keys, local fallback ─
+    order = list(cloud)
+    if distribute and len(order) > 1:
+        off = next(_rr) % len(order)
+        order = order[off:] + order[:off]   # rotate start for even spread
+    return RoutePlan(tier="fast", providers=order + ["ollama"],
+                     reason=f"{tier_class} → cloud distribute", signals=[tier_class])
+
+
+if __name__ == "__main__":
+    import os
+    sys.stdout.reconfigure(encoding="utf-8")
+
+    # Ensure at least one cloud provider looks configured for the test
+    os.environ.setdefault("GEMINI_API_KEY", "test-key")
+    os.environ.setdefault("ANTHROPIC_API_KEY", "test-key")
+    from core.inference.key_pool import reset_pools
+    reset_pools()
+
+    assert _is_local("ollama") is True
+    assert _is_local("freellmapi") is False, \
+        "freellmapi proxies to third-party APIs — must never be treated as local"
+    assert _is_local("lmstudio") is True
+    assert _is_local("vllm") is True
+
+    sec = decide_route("scan this binary for malware", district="security")
+    assert sec.local_only and sec.providers == ["ollama"], sec
+
+    secret = decide_route("here is my password: hunter2, store it")
+    assert secret.local_only, secret
+
+    simple = decide_route("what is the capital of France?")
+    assert not simple.local_only and simple.providers[-1] == "ollama", simple
+    assert simple.tier == "fast", simple
+
+    heavy = decide_route("Prove step by step that there are infinitely many primes, "
+                         "with a formal chain of thought and rigorous reasoning")
+    assert not heavy.local_only and heavy.tier == "reasoning", heavy
+
+    # freellmapi must never appear in a cloud route — it's coding-only,
+    # explicit-selection (see llm_providers.py note + coding_catalog.py).
+    assert "freellmapi" not in simple.providers, simple
+    assert "freellmapi" not in heavy.providers, heavy
+
+    print("OK route_policy.py — sensitive→local, secret→local, simple→cloud, heavy→reasoning")

@@ -1,0 +1,3 @@
+[console_scripts]
+vector = _vectorcode_entry:main
+vectorcode = _vectorcode_entry:main

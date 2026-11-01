@@ -1,0 +1,122 @@
+# VECTOR module — ported from VectorCode
+# Personalized for VECTOR runtime.
+# Owner: Arghyadeep Deb
+# Ingested: 2026-05-15T02:57:36+00:00
+
+"""Intelligence-pillar appliers: model routing and parameters.
+
+See spec §4.1 op semantics for SET_MODEL_FOR_QUERY_CLASS and SET_MODEL_PARAM.
+"""
+
+from __future__ import annotations
+
+from vectorcode.src.learning.distillation.execute.base import (
+    ApplyContext,
+    ApplyResult,
+    EditApplier,
+    ValidationResult,
+    format_toml_key,
+    format_toml_value,
+)
+from vectorcode.src.learning.distillation.models import Edit, EditOp
+
+class SetModelForQueryClassApplier(EditApplier):
+    """Update the routing policy map for a query class."""
+
+    op = EditOp.SET_MODEL_FOR_QUERY_CLASS
+
+    def validate(self, edit: Edit, ctx: ApplyContext) -> ValidationResult:
+        if "query_class" not in edit.payload or "model" not in edit.payload:
+            return ValidationResult(
+                ok=False, reason="Missing query_class or model in payload"
+            )
+        return ValidationResult(ok=True)
+
+    def apply(self, edit: Edit, ctx: ApplyContext) -> ApplyResult:
+        query_class = format_toml_key(edit.payload["query_class"])
+        model = format_toml_value(edit.payload["model"])
+        config_path = ctx.config_path
+        content = (
+            config_path.read_text(encoding="utf-8") if config_path.exists() else ""
+        )
+
+        # Check if the policy_map section exists
+        if "[learning.routing.policy_map]" in content:
+            # Check if this query_class already has a line
+            lines = content.splitlines()
+            found = False
+            for i, line in enumerate(lines):
+                stripped = line.strip()
+                if stripped.startswith(f"{query_class}") and "=" in stripped:
+                    lines[i] = f"{query_class} = {model}"
+                    found = True
+                    break
+            if not found:
+                # Append after the [learning.routing.policy_map] header
+                for i, line in enumerate(lines):
+                    if line.strip() == "[learning.routing.policy_map]":
+                        lines.insert(i + 1, f"{query_class} = {model}")
+                        break
+            content = "\n".join(lines) + "\n"
+        else:
+            # Append the section
+            content += f"\n[learning.routing.policy_map]\n{query_class} = {model}\n"
+
+        config_path.write_text(content, encoding="utf-8")
+        return ApplyResult(changed_files=[str(config_path)])
+
+    def rollback(self, edit: Edit, ctx: ApplyContext) -> None:
+        from loguru import logger
+        logger.debug("[VECTOR][intelligence] rollback called (no-op)")
+
+class SetModelParamApplier(EditApplier):
+    """Update a model parameter in config."""
+
+    op = EditOp.SET_MODEL_PARAM
+
+    def validate(self, edit: Edit, ctx: ApplyContext) -> ValidationResult:
+        for key in ("model", "param", "value"):
+            if key not in edit.payload:
+                return ValidationResult(ok=False, reason=f"Missing {key} in payload")
+        return ValidationResult(ok=True)
+
+    def apply(self, edit: Edit, ctx: ApplyContext) -> ApplyResult:
+        model = format_toml_key(str(edit.payload["model"]).replace(":", "-"))
+        param = format_toml_key(edit.payload["param"])
+        value = format_toml_value(edit.payload["value"])
+        config_path = ctx.config_path
+        content = (
+            config_path.read_text(encoding="utf-8") if config_path.exists() else ""
+        )
+
+        section_header = f"[models.{model}]"
+
+        if section_header in content:
+            lines = content.splitlines()
+            in_section = False
+            found = False
+            for i, line in enumerate(lines):
+                if line.strip() == section_header:
+                    in_section = True
+                    continue
+                if in_section and line.strip().startswith("["):
+                    # Hit next section — insert before it
+                    lines.insert(i, f"{param} = {value}")
+                    found = True
+                    break
+                if in_section and line.strip().startswith(f"{param}"):
+                    lines[i] = f"{param} = {value}"
+                    found = True
+                    break
+            if not found:
+                lines.append(f"{param} = {value}")
+            content = "\n".join(lines) + "\n"
+        else:
+            content += f"\n{section_header}\n{param} = {value}\n"
+
+        config_path.write_text(content, encoding="utf-8")
+        return ApplyResult(changed_files=[str(config_path)])
+
+    def rollback(self, edit: Edit, ctx: ApplyContext) -> None:
+        from loguru import logger
+        logger.debug("[VECTOR][intelligence] rollback called (no-op)")

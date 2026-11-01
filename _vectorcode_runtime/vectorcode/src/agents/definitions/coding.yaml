@@ -1,0 +1,39 @@
+- name: coder
+  class_name: CoderAgent
+  district: coding
+  description: Writes code, implements features
+  model: vector-coder
+  hp: 500
+  capabilities: [python, typescript, bash]
+
+- name: reviewer
+  class_name: ReviewerAgent
+  district: coding
+  description: Reviews code for bugs, style, security
+  model: vector-coder
+  hp: 500
+  capabilities: [code_review, security_audit]
+
+- name: tester
+  class_name: TesterAgent
+  district: coding
+  description: Writes and runs tests, coverage analysis
+  model: vector-coder
+  hp: 500
+  capabilities: [pytest, unittest, coverage]
+
+- name: debugger
+  class_name: DebuggerAgent
+  district: coding
+  description: Debugs failing code, isolates root causes
+  model: vector-coder
+  hp: 500
+  capabilities: [debugging, profiling, tracing]
+
+- name: architect
+  class_name: ArchitectAgent
+  district: coding
+  description: Designs system architecture and module boundaries
+  model: vector-reasoning
+  hp: 500
+  capabilities: [architecture, system_design, api_design]

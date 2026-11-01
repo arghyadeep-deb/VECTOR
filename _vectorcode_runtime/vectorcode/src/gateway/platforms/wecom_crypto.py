@@ -1,0 +1,167 @@
+"""WeCom BizMsgCrypt-compatible AES-CBC encryption for callback mode.
+
+Implements the same wire format as Tencent's official ``WXBizMsgCrypt``
+SDK so that WeCom can verify, encrypt, and decrypt callback payloads.
+"""
+
+from __future__ import annotations
+
+import base64
+import hashlib
+import os
+import secrets
+import struct
+from typing import Optional
+# NOTE: this module only ever BUILDS XML (encrypt()'s response envelope),
+# it never parses untrusted XML -- confirmed via grep, ET.* is used
+# nowhere else in this file. defusedxml.ElementTree deliberately exposes
+# only parsing functions (fromstring/parse/XML), never Element/SubElement/
+# tostring, since its whole purpose is guarding untrusted-input parsing.
+# A guarded `try: import defusedxml ... except ImportError: xml.etree`
+# dance here was both pointless (nothing to guard) and broken (encrypt()
+# raised AttributeError immediately whenever defusedxml was installed,
+# confirmed live) -- same bug as the dormant comms/wecom_crypto.py copy
+# this is the real counterpart of. Always use the real builder.
+from xml.etree import ElementTree as ET
+
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+
+
+class WeComCryptoError(Exception):
+    pass
+
+
+class SignatureError(WeComCryptoError):
+    pass
+
+
+class DecryptError(WeComCryptoError):
+    pass
+
+
+class EncryptError(WeComCryptoError):
+    pass
+
+
+class PKCS7Encoder:
+    block_size = 32
+
+    @classmethod
+    def encode(cls, text: bytes) -> bytes:
+        amount_to_pad = cls.block_size - (len(text) % cls.block_size)
+        if amount_to_pad == 0:
+            amount_to_pad = cls.block_size
+        pad = bytes([amount_to_pad]) * amount_to_pad
+        return text + pad
+
+    @classmethod
+    def decode(cls, decrypted: bytes) -> bytes:
+        if not decrypted:
+            raise DecryptError("empty decrypted payload")
+        pad = decrypted[-1]
+        if pad < 1 or pad > cls.block_size:
+            raise DecryptError("invalid PKCS7 padding")
+        if decrypted[-pad:] != bytes([pad]) * pad:
+            raise DecryptError("malformed PKCS7 padding")
+        return decrypted[:-pad]
+
+
+def _sha1_signature(token: str, timestamp: str, nonce: str, encrypt: str) -> str:
+    parts = sorted([token, timestamp, nonce, encrypt])
+    return hashlib.sha1("".join(parts).encode("utf-8")).hexdigest()
+
+
+class WXBizMsgCrypt:
+    """Minimal WeCom callback crypto helper compatible with BizMsgCrypt semantics."""
+
+    def __init__(self, token: str, encoding_aes_key: str, receive_id: str):
+        if not token:
+            raise ValueError("token is required")
+        if not encoding_aes_key:
+            raise ValueError("encoding_aes_key is required")
+        if len(encoding_aes_key) != 43:
+            raise ValueError("encoding_aes_key must be 43 chars")
+        if not receive_id:
+            raise ValueError("receive_id is required")
+
+        self.token = token
+        self.receive_id = receive_id
+        try:
+            self.key = base64.b64decode(encoding_aes_key + "=", validate=True)
+        except (ValueError, base64.binascii.Error) as exc:
+            raise ValueError("encoding_aes_key must be valid base64") from exc
+        if len(self.key) != 32:
+            raise ValueError("encoding_aes_key must decode to 32 bytes")
+        self.iv = self.key[:16]
+
+    def verify_url(self, msg_signature: str, timestamp: str, nonce: str, echostr: str) -> str:
+        plain = self.decrypt(msg_signature, timestamp, nonce, echostr)
+        return plain.decode("utf-8")
+
+    def decrypt(self, msg_signature: str, timestamp: str, nonce: str, encrypt: str) -> bytes:
+        expected = _sha1_signature(self.token, timestamp, nonce, encrypt)
+        # Timing-unsafe comparison on a crypto signature -- a plain != leaks
+        # how many leading characters matched via response timing. Same bug
+        # class fixed in vectorcode/src/comms/{wecom_crypto,wecom_callback}.py
+        # this cycle; this is the REAL, live copy those are dormant
+        # duplicates of.
+        if not secrets.compare_digest(expected, msg_signature):
+            raise SignatureError("signature mismatch")
+        try:
+            cipher_text = base64.b64decode(encrypt, validate=True)
+        except (ValueError, base64.binascii.Error) as exc:
+            raise DecryptError(f"invalid base64 payload: {exc}") from exc
+        if not cipher_text or len(cipher_text) % 16:
+            raise DecryptError("ciphertext must contain complete AES blocks")
+        try:
+            cipher = Cipher(algorithms.AES(self.key), modes.CBC(self.iv), backend=default_backend())
+            decryptor = cipher.decryptor()
+            padded = decryptor.update(cipher_text) + decryptor.finalize()
+            plain = PKCS7Encoder.decode(padded)
+            if len(plain) < 20:
+                raise DecryptError("decrypted payload is too short")
+            content = plain[16:]  # skip 16-byte random prefix
+            xml_length = struct.unpack("!I", content[:4])[0]
+            if xml_length > len(content) - 4:
+                raise DecryptError("declared message length exceeds payload")
+            xml_content = content[4:4 + xml_length]
+            receive_id = content[4 + xml_length:].decode("utf-8")
+        except WeComCryptoError:
+            raise
+        except Exception as exc:
+            raise DecryptError(f"decrypt failed: {exc}") from exc
+
+        if receive_id != self.receive_id:
+            raise DecryptError("receive_id mismatch")
+        return xml_content
+
+    def encrypt(self, plaintext: str, nonce: Optional[str] = None, timestamp: Optional[str] = None) -> str:
+        nonce = nonce or self._random_nonce()
+        timestamp = timestamp or str(int(__import__("time").time()))
+        encrypt = self._encrypt_bytes(plaintext.encode("utf-8"))
+        signature = _sha1_signature(self.token, timestamp, nonce, encrypt)
+        root = ET.Element("xml")
+        ET.SubElement(root, "Encrypt").text = encrypt
+        ET.SubElement(root, "MsgSignature").text = signature
+        ET.SubElement(root, "TimeStamp").text = timestamp
+        ET.SubElement(root, "Nonce").text = nonce
+        return ET.tostring(root, encoding="unicode")
+
+    def _encrypt_bytes(self, raw: bytes) -> str:
+        try:
+            random_prefix = os.urandom(16)
+            msg_len = struct.pack("!I", len(raw))
+            payload = random_prefix + msg_len + raw + self.receive_id.encode("utf-8")
+            padded = PKCS7Encoder.encode(payload)
+            cipher = Cipher(algorithms.AES(self.key), modes.CBC(self.iv), backend=default_backend())
+            encryptor = cipher.encryptor()
+            encrypted = encryptor.update(padded) + encryptor.finalize()
+            return base64.b64encode(encrypted).decode("utf-8")
+        except Exception as exc:
+            raise EncryptError(f"encrypt failed: {exc}") from exc
+
+    @staticmethod
+    def _random_nonce(length: int = 10) -> str:
+        alphabet = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        return "".join(secrets.choice(alphabet) for _ in range(length))

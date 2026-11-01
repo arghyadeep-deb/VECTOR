@@ -1,0 +1,60 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vectorcode"
+version = "1.0.5"
+description = "VectorCode — standalone terminal with the canonical VECTOR coding runtime"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+authors = [{ name = "Arghyadeep Deb" }]
+
+# Coding runtime only; city ML/audio dependencies remain in the root distribution.
+dependencies = [
+    "loguru>=0.7.2",
+    "pydantic>=2.13.4,<3",
+    "httpx>=0.28.1,<0.29",
+    "numpy>=1.26.0",
+    "pydantic-settings>=2.14.0,<3",
+    "python-dotenv>=1.2.2,<2",
+    "PyYAML>=6.0",
+    "keyring>=25.0",
+    "openai==2.36.0",
+    "anthropic==0.97.0",
+    "ollama==0.6.2",
+    "mcp==1.27.1",
+    "pypdf>=6.0",
+    "pillow>=12.2.0",
+    "rich>=13.0",
+    "prompt-toolkit>=3.0",
+    "pyperclip>=1.9",
+]
+
+[project.optional-dependencies]
+comms = [
+    "python-telegram-bot>=21.0",
+    "slack-sdk>=3.27.0",
+    "discord.py>=2.3.0",
+]
+voice = [
+    "sounddevice>=0.4.6",
+    "soundfile>=0.12.1",
+    "openai-whisper>=20231117",
+]
+full = ["vectorcode[comms,voice]"]
+
+[project.scripts]
+# Entry point so `vectorcode` can be run as a CLI after pip install
+vectorcode = "_vectorcode_entry:main"
+vector = "_vectorcode_entry:main"
+
+[tool.setuptools]
+include-package-data = false
+packages = ["_vectorcode_entry", "_vectorcode_runtime"]
+
+[tool.setuptools.package-data]
+# The backend stages only allowlisted files; include all of that audited tree,
+# including extensionless third-party LICENSE/COPYING notices.
+"_vectorcode_runtime" = ["**/*"]

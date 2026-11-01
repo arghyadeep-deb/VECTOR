@@ -1,0 +1,54 @@
+from __future__ import annotations
+
+__all__ = [
+    "TranscribeClientPort",
+    "TranscribeDone",
+    "TranscribeError",
+    "TranscribeEvent",
+    "TranscribeSessionCreated",
+    "TranscribeTextDelta",
+]
+
+
+from collections.abc import AsyncIterator
+from dataclasses import dataclass
+from typing import Protocol
+
+from core.coding_assistant.core.config import TranscribeModelConfig, TranscribeProviderConfig
+
+
+@dataclass(frozen=True, slots=True)
+class TranscribeSessionCreated:
+    request_id: str
+
+
+@dataclass(frozen=True, slots=True)
+class TranscribeTextDelta:
+    text: str
+
+
+@dataclass(frozen=True, slots=True)
+class TranscribeDone:
+    pass
+
+
+@dataclass(frozen=True, slots=True)
+class TranscribeError:
+    message: str
+
+
+TranscribeEvent = (
+    TranscribeSessionCreated | TranscribeTextDelta | TranscribeDone | TranscribeError
+)
+
+
+class TranscribeClientPort(Protocol):
+    def __init__(
+        self, provider: TranscribeProviderConfig, model: TranscribeModelConfig
+    ) -> None: ...
+
+    def transcribe(
+        self, audio_stream: AsyncIterator[bytes]
+    ) -> AsyncIterator[TranscribeEvent]: ...
+
+    async def close(self) -> None: ...

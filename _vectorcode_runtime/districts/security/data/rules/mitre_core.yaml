@@ -1,0 +1,117 @@
+rules:
+  - id: T1070_log_clearing
+    name: Log File Clearing Detected
+    description: Detects commands commonly used to clear Windows or Linux logs.
+    severity: 9
+    enabled: true
+    condition:
+      type: pattern
+      field: message
+      pattern: "(wevtutil\\s+cl|Clear-EventLog|auditpol\\s+/clear|rm\\s+-rf\\s+/var/log|truncate\\s+-s\\s+0\\s+/var/log)"
+    response:
+      - alert
+      - playbook:log_clearing
+
+  - id: T1086_powershell
+    name: Suspicious PowerShell Execution
+    description: Detects encoded or bypassed PowerShell execution.
+    severity: 8
+    enabled: true
+    condition:
+      type: pattern
+      field: message
+      pattern: "(powershell|pwsh|Invoke-Expression).*(-enc|-encodedcommand|-nop|-w\\s+hidden|bypass|Invoke-Expression|download|WriteProcessMemory)?"
+    response:
+      - alert
+      - playbook:powershell_execution
+
+  - id: T1059_cmd_scripting
+    name: Command and Scripting Interpreter
+    description: Detects suspicious command interpreter usage.
+    severity: 7
+    enabled: true
+    condition:
+      type: pattern
+      field: message
+      pattern: "(cmd\\.exe\\s+/c|bash\\s+-c|sh\\s+-c|python\\s+-c|curl\\s+.*\\|\\s*sh)"
+    response:
+      - alert
+
+  - id: T1110_brute_force
+    name: Brute Force Login Attempts
+    description: Detects repeated failed authentication attempts.
+    severity: 8
+    enabled: true
+    condition:
+      type: rate
+      field: message
+      pattern: "(failed password|authentication failed|invalid login|login failed|auth fail|login fail|invalid password|incorrect password)"
+      threshold: 5
+      window: 60
+    response:
+      - alert
+      - playbook:brute_force
+
+  - id: T1046_port_scan
+    name: Network Port Scan
+    description: Detects reconnaissance-style port scanning.
+    severity: 6
+    enabled: true
+    condition:
+      type: pattern
+      field: message
+      pattern: "(port scan|nmap|masscan|syn scan)"
+    response:
+      - alert
+      - playbook:port_scan
+
+  - id: T1485_data_destruction
+    name: Data Destruction Attempt
+    description: Detects destructive file deletion or disk overwrite commands.
+    severity: 10
+    enabled: true
+    condition:
+      type: pattern
+      field: message
+      pattern: "(rm\\s+-rf\\s+/(?!tmp)|del\\s+/f\\s+/s\\s+/q|format\\s+[a-z]:|cipher\\s+/w|shred\\s+|dd\\s+if=/dev/zero|Remove-Item\\s+.*-Recurse|DROP\\s+TABLE)"
+    response:
+      - alert
+      - playbook:data_destruction
+
+  - id: T1496_high_cpu
+    name: Resource Hijacking (High CPU)
+    description: Detects suspiciously high CPU utilization.
+    severity: 7
+    enabled: true
+    condition:
+      type: threshold
+      field: cpu_percent
+      operator: ">="
+      value: 95
+    response:
+      - alert
+
+  - id: T1055_process_injection
+    name: Process Injection Attempt
+    description: Detects common process injection indicators.
+    severity: 9
+    enabled: true
+    condition:
+      type: pattern
+      field: message
+      pattern: "(process injection|CreateRemoteThread|WriteProcessMemory|VirtualAllocEx|dll injection)"
+    response:
+      - alert
+      - playbook:process_injection
+
+  - id: T1021_remote_services
+    name: Unusual Remote Service Access
+    description: Detects suspicious remote service access.
+    severity: 8
+    enabled: true
+    condition:
+      type: pattern
+      field: message
+      pattern: "(rdp login|ssh login|ssh from|psexec|winrm|remote service)"
+    response:
+      - alert

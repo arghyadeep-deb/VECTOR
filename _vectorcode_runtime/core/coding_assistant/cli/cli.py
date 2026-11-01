@@ -1,0 +1,290 @@
+from __future__ import annotations
+
+__all__ = [
+    "bootstrap_config_files",
+    "get_initial_agent_name",
+    "get_prompt_from_stdin",
+    "load_config_or_exit",
+    "load_session",
+    "run_cli",
+    "warn_if_workdir_trust_is_unset",
+]
+
+
+import argparse
+from pathlib import Path
+import sys
+
+from rich import print as rprint
+from rich.console import Console
+import tomli_w
+
+from core.coding_assistant import __version__
+from core.coding_assistant.cli.textual_ui.app import StartupOptions, run_textual_ui
+from core.coding_assistant.core.agent_loop import AgentLoop
+from core.coding_assistant.core.agents.models import BuiltinAgentName
+from core.coding_assistant.core.config import (
+    MissingAPIKeyError,
+    MissingPromptFileError,
+    VectorCAConfig,
+    load_dotenv_values,
+)
+from core.coding_assistant.core.config.harness_files import get_harness_files_manager
+from core.coding_assistant.core.hooks.config import load_hooks_from_fs
+from core.coding_assistant.core.logger import logger
+from core.coding_assistant.core.paths import HISTORY_FILE
+from core.coding_assistant.core.programmatic import run_programmatic
+from core.coding_assistant.core.session.session_loader import SessionLoader
+# [VECTOR] telemetry removed: from core.coding_assistant.core.telemetry.build_metadata import build_entrypoint_metadata
+# [VECTOR] telemetry removed: from core.coding_assistant.core.telemetry.types import EntrypointMetadata
+# [VECTOR] removed: from core.coding_assistant.core.tracing import setup_tracing
+from core.coding_assistant.core.trusted_folders import find_trustable_files, trusted_folders_manager
+from core.coding_assistant.core.types import LLMMessage, OutputFormat, Role
+from core.coding_assistant.core.utils import ConversationLimitException
+from core.coding_assistant.setup.onboarding import run_onboarding
+
+
+def _build_cli_entrypoint_metadata() -> EntrypointMetadata:
+    return build_entrypoint_metadata(
+        agent_entrypoint="cli",
+        agent_version=__version__,
+        client_name="vibe_cli",
+        client_version=__version__,
+    )
+
+
+def get_initial_agent_name(args: argparse.Namespace, config: VectorCAConfig) -> str:
+    if args.prompt is not None and args.agent is None:
+        return BuiltinAgentName.AUTO_APPROVE
+    return args.agent or config.default_agent
+
+
+def get_prompt_from_stdin() -> str | None:
+    if sys.stdin.isatty():
+        return None
+    try:
+        if content := sys.stdin.read().strip():
+            sys.stdin = sys.__stdin__ = open("/dev/tty")
+            return content
+    except KeyboardInterrupt:
+        logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
+    except OSError:
+        return None
+
+    return None
+
+
+def load_config_or_exit(*, interactive: bool) -> VectorCAConfig:
+    try:
+        return VectorCAConfig.load()
+    except MissingAPIKeyError as e:
+        if not interactive:
+            print(
+                f"Error: {e}. Set the environment variable (e.g. in ~/.vibe/.env "
+                "or your shell), or run `vibe --setup` once interactively.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        run_onboarding(entrypoint_metadata=_build_cli_entrypoint_metadata())
+        return VectorCAConfig.load()
+    except MissingPromptFileError as e:
+        rprint(f"[yellow]Invalid system prompt id: {e}[/]")
+        sys.exit(1)
+    except ValueError as e:
+        rprint(f"[yellow]{e}[/]")
+        sys.exit(1)
+
+
+def warn_if_workdir_trust_is_unset() -> None:
+    try:
+        cwd = Path.cwd()
+    except FileNotFoundError:
+        return
+    if cwd.resolve() == Path.home().resolve():
+        return
+    if trusted_folders_manager.is_trusted(cwd) is not None:
+        return
+    detected = find_trustable_files(cwd)
+    if not detected:
+        return
+    files_str = ", ".join(detected)
+    Console(stderr=True).print(
+        f"[yellow]Warning:[/] {cwd} is not trusted; "
+        f"project configuration ({files_str}) will be ignored. "
+        "Re-run with --trust to trust this folder temporarily."
+    )
+
+
+def bootstrap_config_files() -> None:
+    mgr = get_harness_files_manager()
+    config_file = mgr.user_config_file
+    if not config_file.exists():
+        try:
+            config_file.parent.mkdir(parents=True, exist_ok=True)
+            with config_file.open("wb") as f:
+                tomli_w.dump(VectorCAConfig.create_default(), f)
+        except Exception as e:
+            rprint(f"[yellow]Could not create default config file: {e}[/]")
+
+    history_file = HISTORY_FILE.path
+    if not history_file.exists():
+        try:
+            history_file.parent.mkdir(parents=True, exist_ok=True)
+            history_file.write_text("Hello Vibe!\n", "utf-8")
+        except Exception as e:
+            rprint(f"[yellow]Could not create history file: {e}[/]")
+
+
+def load_session(
+    args: argparse.Namespace, config: VectorCAConfig
+) -> tuple[list[LLMMessage], Path] | None:
+    if not args.continue_session and not args.resume:
+        return None
+
+    if not config.session_logging.enabled:
+        rprint(
+            "[red]Session logging is disabled. "
+            "Enable it in config to use --continue or --resume[/]"
+        )
+        sys.exit(1)
+
+    session_to_load = None
+    if args.continue_session:
+        cwd = Path.cwd().resolve()
+        session_to_load = SessionLoader.find_latest_session(
+            config.session_logging, working_directory=cwd
+        )
+        if not session_to_load:
+            rprint(
+                f"[red]No previous sessions found in "
+                f"{config.session_logging.save_dir} for {cwd=}[/]"
+            )
+            sys.exit(1)
+    elif args.resume is True:
+        return None
+    else:
+        session_to_load = SessionLoader.find_session_by_id(
+            args.resume, config.session_logging
+        )
+        if not session_to_load:
+            rprint(
+                f"[red]Session '{args.resume}' not found in "
+                f"{config.session_logging.save_dir}[/]"
+            )
+            sys.exit(1)
+
+    try:
+        loaded_messages, _ = SessionLoader.load_session(session_to_load)
+        return loaded_messages, session_to_load
+    except Exception as e:
+        rprint(f"[red]Failed to load session: {e}[/]")
+        sys.exit(1)
+
+
+def _resume_previous_session(
+    agent_loop: AgentLoop, loaded_messages: list[LLMMessage], session_path: Path
+) -> None:
+    non_system_messages = [msg for msg in loaded_messages if msg.role != Role.system]
+    agent_loop.messages.extend(non_system_messages)
+
+    _, metadata = SessionLoader.load_session(session_path)
+    session_id = metadata.get("session_id", agent_loop.session_id)
+    agent_loop.session_id = session_id
+    agent_loop.parent_session_id = metadata.get("parent_session_id")
+    agent_loop.session_logger.resume_existing_session(session_id, session_path)
+
+    logger.info(
+        "Resumed session %s with %d messages", session_id, len(non_system_messages)
+    )
+
+
+def run_cli(args: argparse.Namespace) -> None:
+    load_dotenv_values()
+    bootstrap_config_files()
+
+    if args.setup:
+        run_onboarding(entrypoint_metadata=_build_cli_entrypoint_metadata())
+        sys.exit(0)
+
+    try:
+        is_interactive = args.prompt is None
+        config = load_config_or_exit(interactive=is_interactive)
+        initial_agent_name = get_initial_agent_name(args, config)
+        hook_config_result = load_hooks_from_fs(config)
+
+        if args.enabled_tools:
+            config.enabled_tools = args.enabled_tools
+
+        loaded_session = load_session(args, config)
+
+        stdin_prompt = get_prompt_from_stdin()
+        if args.prompt is not None:
+            warn_if_workdir_trust_is_unset()
+            config.disabled_tools = [
+                *config.disabled_tools,
+                "ask_user_question",
+                "exit_plan_mode",
+            ]
+            programmatic_prompt = args.prompt or stdin_prompt
+            if not programmatic_prompt:
+                print(
+                    "Error: No prompt provided for programmatic mode", file=sys.stderr
+                )
+                sys.exit(1)
+            output_format = OutputFormat(
+                args.output if hasattr(args, "output") else "text"
+            )
+
+            try:
+                final_response = run_programmatic(
+                    config=config,
+                    prompt=programmatic_prompt or "",
+                    max_turns=args.max_turns,
+                    max_price=args.max_price,
+                    output_format=output_format,
+                    previous_messages=loaded_session[0] if loaded_session else None,
+                    agent_name=initial_agent_name,
+                    headless=True,
+                    hook_config_result=hook_config_result,
+                )
+                if final_response:
+                    logger.info(final_response)
+
+                sys.exit(0)
+            except ConversationLimitException as e:
+                logger.info(e, file=sys.stderr)
+
+                sys.exit(1)
+            except (RuntimeError, ValueError) as e:
+                logger.info(f"Error: {e}", file=sys.stderr)
+
+                sys.exit(1)
+        else:
+            try:
+                agent_loop = AgentLoop(
+                    config,
+                    agent_name=initial_agent_name,
+                    enable_streaming=True,
+                    entrypoint_metadata=_build_cli_entrypoint_metadata(),
+                    defer_heavy_init=True,
+                    hook_config_result=hook_config_result,
+                )
+            except ValueError as e:
+                rprint(f"[red]Error:[/] {e}")
+                sys.exit(1)
+
+            if loaded_session:
+                _resume_previous_session(agent_loop, *loaded_session)
+
+            run_textual_ui(
+                agent_loop=agent_loop,
+                startup=StartupOptions(
+                    initial_prompt=args.initial_prompt or stdin_prompt,
+                    show_resume_picker=args.resume is True,
+                    is_resuming_session=loaded_session is not None,
+                ),
+            )
+
+    except (KeyboardInterrupt, EOFError):
+        rprint("\n[dim]Bye![/]")
+        sys.exit(0)

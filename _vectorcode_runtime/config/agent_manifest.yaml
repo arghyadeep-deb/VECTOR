@@ -1,0 +1,1947 @@
+# VECTOR Agent Manifest — declarative registry of 274 agents across 41 districts
+# Format: each agent maps to a Python class via its fully-qualified import path.
+# ManifestLoader in core/city/declarative_manifest.py reads this file.
+version: "1.0"
+
+districts:
+
+  # 2026-09-29 SELF_DEV_P10_SELF_DEV: isolated VECTOR-tooling inspectors.
+  # These agents parse only caller-supplied artifacts in memory. They do not
+  # import coding agents, write files, or receive capabilities from any other district.
+  self_dev:
+    - name: agent_creator
+      class: districts.self_dev.self_dev_specialists.AgentCreator
+      model: vector-focus
+      description: Validates supplied VECTOR tooling-agent metadata and AgentBase source structure
+      capabilities: [agent_creation_brief, agent_definition_check]
+
+    - name: plugin_validator
+      class: districts.self_dev.self_dev_specialists.PluginValidator
+      model: vector-focus
+      description: Parses supplied plugin manifests and validates package structure and declared permissions
+      capabilities: [plugin_validation_brief, plugin_manifest_check]
+
+    - name: skill_reviewer
+      class: districts.self_dev.self_dev_specialists.SkillReviewer
+      model: vector-focus
+      description: Reviews supplied skill documents for required metadata, sections, and actionable steps
+      capabilities: [skill_review_brief, skill_structure_check]
+
+    - name: skill_analyzer
+      class: districts.self_dev.self_dev_specialists.SkillAnalyzer
+      model: vector-focus
+      description: Analyzes supplied skill structure, resource references, and unresolved placeholders
+      capabilities: [skill_analysis_brief, skill_analysis_check]
+
+    - name: skill_comparator
+      class: districts.self_dev.self_dev_specialists.SkillComparator
+      model: vector-focus
+      description: Computes deterministic skill-document diffs against explicit change expectations
+      capabilities: [skill_comparison_brief, skill_comparison_check]
+
+    - name: skill_grader
+      class: districts.self_dev.self_dev_specialists.SkillGrader
+      model: vector-focus
+      description: Grades supplied skill text against explicit weighted caller-supplied criteria
+      capabilities: [skill_grading_brief, skill_grade_check]
+
+    - name: conversation_analyzer
+      class: districts.self_dev.self_dev_specialists.ConversationAnalyzer
+      model: vector-focus
+      description: Validates supplied conversation-derived hook rules against structured transcript events
+      capabilities: [hook_conversation_brief, hook_candidate_check]
+
+  coding:
+    # Task A.2 (2026-06-21): CodingSwarm self-loads + internally routes to 9
+    # more specialist agents not otherwise reachable (codebase_onboarding_engineer,
+    # code_conductor_agent, code_intel_agent, database_optimizer, frontend_developer,
+    # gui_automation_agent, minimal_change_engineer, mlops_agent, rapid_prototyper —
+    # see districts/coding/agent.py PYTHON_AGENTS). Same orchestrator pattern already
+    # registered for ops_swarm/qa_swarm; registering only the front door is correct —
+    # registering the sub-agents individually too would just create a second,
+    # always-losing (lower HP, no declared capability) dispatch path for them.
+    - name: coding_swarm
+      class: districts.coding.agent.CodingSwarm
+      model: vector-coder
+      description: Orchestrator that auto-loads and routes across 9 additional coding specialists by task-type keyword match
+      capabilities: [onboarding, code_conductor, code-intel, database-optimizer, db_optimize, frontend_developer, gui, minimal-change, mlops, rapid-prototype, rapid_prototype, research]
+
+    # Cleanup batch (2026-06-22): fixed run()-branching for 3, registered
+    # obra_code_reviewer as-is (PromptAgent subclass — AgentBase via
+    # core.city.prompt_agent.PromptAgent; its real run() is a generic
+    # single-purpose LLM-persona dispatcher, not the AgentBase fake stub —
+    # "branching on type" doesn't apply the same way to single-job prompt agents).
+    - name: fastapi_reviewer
+      class: districts.coding.fastapi_reviewer.FastAPIReviewer
+      model: vector-coder
+      description: FastAPI-specific code review (async correctness, dependency injection, Pydantic schemas)
+      capabilities: [review_fastapi, fastapi_review]
+
+    - name: python_reviewer
+      class: districts.coding.python_reviewer.PythonReviewer
+      model: vector-coder
+      description: General Python code review (PEP8, idioms, type hints)
+      # 2026-10-31: "pep8_review" is the exact task_type governor.py routes
+      # (distinct from "check_pep8") -- same overwrite gap as gap_analyst
+      # above, confirmed live via /command.
+      capabilities: [review_python, check_pep8, python_review, pep8_review]
+
+    - name: security_reviewer
+      class: districts.coding.security_reviewer.SecurityReviewer
+      model: vector-coder
+      description: Security-focused code review and vulnerability scanning
+      capabilities: [review_security, scan_vulnerabilities, security_code_review]
+
+    - name: obra_code_reviewer
+      class: districts.coding.obra_code_reviewer.ObraCodeReviewer
+      model: vector-coder
+      description: Independent second-opinion code reviewer (fresh-eyes review style)
+      # 2026-10-31: "code_review_obra" is the exact task_type governor.py
+      # routes -- same overwrite gap as gap_analyst above, confirmed live.
+      capabilities: [obra_review, code_review_obra]
+
+    - name: git_bot
+      class: districts.coding.git_bot.GitBot
+      model: vector-coder
+      description: Git operations — commit, push, diff, PR management
+      capabilities: [git, code_review, github]
+
+    - name: code_reviewer
+      class: districts.coding.code_reviewer.CodeReviewer
+      model: vector-coder
+      description: AST-based code review; circular imports, security patterns
+      capabilities: [code_review, ast_analysis, security]
+
+    - name: architect_bot
+      class: districts.coding.architect_bot.ArchitectBot
+      model: vector-coder
+      description: System design, architecture decisions, dependency graphs
+      capabilities: [architecture, design, diagrams]
+
+    - name: bug_hunter
+      class: districts.coding.bug_hunter.BugHunter
+      model: vector-coder
+      description: Root-cause bug analysis and systematic debugging
+      capabilities: [debugging, root_cause, testing]
+
+    - name: test_writer
+      class: districts.coding.test_writer.TestWriter
+      model: vector-coder
+      description: TDD test generation for Python modules
+      capabilities: [testing, pytest, tdd]
+
+    # Task A.2 (2026-06-21): manifest_gap.md "ready to register" batch.
+    - name: addy_code_reviewer
+      class: districts.coding.addy_code_reviewer.AddyCodeReviewer
+      model: vector-coder
+      description: Senior code review across 5 dimensions — correctness, readability, performance, security, maintainability
+      # 2026-10-31: "code_review_addy" is the exact task_type governor.py
+      # routes -- same overwrite gap as gap_analyst above, confirmed live.
+      capabilities: [deep_code_review, code_review_addy]
+
+    - name: code_explorer
+      class: districts.coding.code_explorer.CodeExplorer
+      model: vector-coder
+      description: Deep code exploration — traces execution paths, maps dependencies
+      capabilities: [code_exploration, dependency_trace]
+
+    - name: developer_advocate
+      class: districts.coding.developer_advocate.DeveloperAdvocate
+      model: vector-coder
+      description: Developer experience engineering — optimizes Time-To-First-Hello-World
+      # 2026-10-31: "developer_advocate" is the exact task_type governor.py
+      # routes -- same overwrite gap as gap_analyst above, confirmed live.
+      capabilities: [developer_experience, ttfhw, dx, developer_advocate]
+
+    - name: refactor_cleaner
+      class: districts.coding.refactor_cleaner.RefactorCleaner
+      model: vector-coder
+      description: Dead code cleanup — unused imports, duplicate code, dead exports
+      capabilities: [dead_code_cleanup, refactor_clean]
+
+    # 2026-09-29 SELF_DEV_P2_CODING: evidence-gated, read-only specialists.
+    # Briefs report caller-supplied evidence completeness; checks parse or
+    # recompute the supplied artifacts without trusting an LLM verdict.
+    - name: agent_sdk_verifier_ts
+      class: districts.coding.coding_specialists.AgentSDKVerifierTS
+      model: vector-coder
+      description: TypeScript agent SDK brief plus dependency, strict-mode, construction, and export checks
+      capabilities: [agent_sdk_ts_brief, agent_sdk_ts_check]
+
+    - name: business_rules_extractor
+      class: districts.coding.coding_specialists.BusinessRulesExtractor
+      model: vector-coder
+      description: Business-rule extraction brief plus Python AST rule and owner discovery
+      capabilities: [business_rules_brief, business_rules_check]
+
+    - name: legacy_analyst
+      class: districts.coding.coding_specialists.LegacyAnalyst
+      model: vector-coder
+      description: Legacy-code brief plus Python AST checks for parseability and unsafe exception/import constructs
+      capabilities: [legacy_analysis_brief, legacy_analysis_check]
+
+    - name: scaffolder
+      class: districts.coding.coding_specialists.Scaffolder
+      model: vector-coder
+      description: Scaffold brief plus required-file presence and non-empty structure checks
+      capabilities: [scaffold_brief, scaffold_structure_check]
+
+    - name: uplift_migrator
+      class: districts.coding.coding_specialists.UpliftMigrator
+      model: vector-coder
+      description: Code uplift brief plus real before/after AST and public-definition diff checks
+      capabilities: [uplift_migration_brief, uplift_migration_check]
+
+    - name: version_delta_analyst
+      class: districts.coding.coding_specialists.VersionDeltaAnalyst
+      model: vector-coder
+      description: Version delta brief plus deterministic contract addition, removal, and signature comparison
+      capabilities: [version_delta_brief, version_delta_check]
+
+    - name: ai_data_remediation_engineer
+      class: districts.coding.coding_specialists.AIDataRemediationEngineer
+      model: vector-coder
+      description: Dataset remediation brief plus required, non-null, and uniqueness constraint checks
+      capabilities: [ai_data_remediation_brief, ai_data_remediation_check]
+
+    - name: autonomous_optimization_architect
+      class: districts.coding.coding_specialists.AutonomousOptimizationArchitect
+      model: vector-coder
+      description: Optimization brief plus measured baseline/candidate objective comparison
+      capabilities: [autonomous_optimization_brief, autonomous_optimization_check]
+
+    - name: cms_developer
+      class: districts.coding.coding_specialists.CMSDeveloper
+      model: vector-coder
+      description: CMS implementation brief plus content-model and route structural checks
+      capabilities: [cms_implementation_brief, cms_structure_check]
+
+    - name: mobile_app_builder
+      class: districts.coding.coding_specialists.MobileAppBuilder
+      model: vector-coder
+      description: Mobile application brief plus source and platform-manifest structural checks
+      capabilities: [mobile_app_brief, mobile_project_check]
+
+    - name: comment_analyzer
+      class: districts.coding.coding_specialists.CommentAnalyzer
+      model: vector-coder
+      description: Review-comment brief plus location, priority, and actionability checks
+      capabilities: [review_comment_brief, review_comment_check]
+
+    - name: type_design_analyzer
+      class: districts.coding.coding_specialists.TypeDesignAnalyzer
+      model: vector-coder
+      description: Public API type-design brief plus Python AST symbol and annotation checks
+      capabilities: [type_design_brief, type_design_check]
+
+    - name: mcp_builder
+      class: districts.coding.coding_specialists.MCPBuilder
+      model: vector-coder
+      description: MCP server brief plus tool-name, description, and input-schema contract checks
+      capabilities: [mcp_server_brief, mcp_manifest_check]
+
+    - name: terminal_integration_specialist
+      class: districts.coding.coding_specialists.TerminalIntegrationSpecialist
+      model: vector-coder
+      description: Terminal integration brief plus tokenized argv, timeout, exit-code, and shell-policy checks
+      capabilities: [terminal_integration_brief, terminal_contract_check]
+
+  research:
+    # Task A.2 (2026-06-21): ResearchSwarm self-loads + routes to deep_researcher,
+    # stealth_scout_agent, opencli_adapter — not otherwise reachable. Same
+    # orchestrator pattern as coding_swarm/ops_swarm/qa_swarm above.
+    - name: research_swarm
+      class: districts.research.agent.ResearchSwarm
+      model: vector-reasoning
+      description: Orchestrator that auto-loads and routes across deep_researcher, stealth_scout_agent, opencli_adapter by task-type keyword match
+      capabilities: [deep_research, stealth, stealth_scout, cli_adapter]
+
+    - name: research_hub
+      class: districts.research.research_hub.ResearchHub
+      model: vector-reasoning
+      description: Orchestrates multi-source research workflows
+      capabilities: [research, synthesis, web_search]
+
+    - name: reddit_miner
+      class: districts.research.reddit_miner.RedditMiner
+      model: vector-focus
+      description: Reddit thread mining for signals and trends
+      capabilities: [reddit, social, trends]
+
+    - name: news_aggregator
+      class: districts.research.news_aggregator.NewsAggregator
+      model: vector-focus
+      description: RSS + news API aggregation and summarisation
+      capabilities: [news, rss, summarisation]
+
+    - name: paper_reader
+      class: districts.research.paper_reader.PaperReader
+      model: vector-reasoning
+      description: ArXiv paper reading and key-insight extraction
+      capabilities: [arxiv, papers, research]
+
+    - name: web_scout
+      class: districts.research.web_scout.WebScout
+      model: vector-focus
+      description: DuckDuckGo search + scrape + summarise
+      capabilities: [web_search, scraping, summarisation]
+
+  governance:
+    - name: llm_council
+      class: districts.governance.llm_council.LLMCouncil
+      model: vector-reasoning
+      description: 3-stage deliberative council for high-stakes decisions
+      capabilities: [deliberation, voting, high_stakes]
+      hp_gate: 700
+
+    # Task A.2 (2026-06-21): manifest_gap.md "ready to register" batch.
+    - name: autopilot
+      class: districts.governance.autopilot.Autopilot
+      model: vector-reasoning
+      description: Autonomous agent chainer — reads task output, decides what district handles the next step
+      capabilities: [autopilot_trigger, autonomous_chaining]
+
+    - name: compliance_auditor
+      class: districts.governance.compliance_auditor.ComplianceAuditor
+      model: vector-reasoning
+      description: Compliance checking across SOC2, GDPR, privacy requirements
+      capabilities: [compliance, soc2, gdpr]
+
+    - name: credential_manager
+      class: districts.governance.credential_manager.CredentialManager
+      model: vector-focus
+      description: Manages API credentials for multiple LLM providers
+      capabilities: [credentials, api_keys]
+
+    - name: federation_agent
+      class: districts.governance.federation_agent.FederationAgent
+      model: vector-reasoning
+      description: Cross-machine task delegation — dispatches signed tasks to remote VECTOR nodes
+      capabilities: [delegate_task, cross_machine, federation]
+
+    - name: product_manager
+      class: districts.governance.product_manager.ProductManager
+      model: vector-reasoning
+      description: Product lifecycle management — PRDs, RICE scoring, roadmaps, outcome tracking
+      capabilities: [product_roadmap, prd, rice_scoring]
+
+  reflection:
+    - name: daily_reviewer
+      class: districts.reflection.daily_reviewer.DailyReviewer
+      model: vector-reasoning
+      description: 2AM daily review — what happened, what to improve
+      capabilities: [reflection, review, obsidian]
+
+    - name: journal_writer
+      class: districts.reflection.journal_writer.JournalWriter
+      model: vector-reasoning
+      description: Daily journal entry writer → Obsidian vault
+      capabilities: [journaling, obsidian, writing]
+
+    - name: growth_analyst
+      class: districts.reflection.growth_analyst.GrowthAnalyst
+      model: vector-reasoning
+      description: Long-term growth pattern analysis from journal history
+      capabilities: [growth, patterns, analytics]
+
+  finance:
+    # Task A.2 (2026-06-21): FinanceSwarm self-loads + routes to fpa_analyst,
+    # llm_cost_tracker, financial_analyst — not otherwise reachable. Same
+    # orchestrator pattern as coding_swarm/research_swarm/ops_swarm/qa_swarm.
+    - name: finance_swarm
+      class: districts.finance.agent.FinanceSwarm
+      model: vector-reasoning
+      description: Orchestrator that auto-loads and routes across fpa_analyst, llm_cost_tracker, financial_analyst by task-type keyword match
+      capabilities: [fpa_analysis, fpa, llm_cost, financial_analysis]
+
+    - name: expense_tracker
+      class: districts.finance.expense_tracker.ExpenseTracker
+      model: vector-focus
+      description: Tracks and categorises expenses from UPI/SMS data
+      capabilities: [finance, expenses, upi]
+
+    - name: budget_analyst
+      class: districts.finance.budget_analyst.BudgetAnalyst
+      model: vector-reasoning
+      description: Budget analysis, variance tracking, savings projections
+      capabilities: [finance, budgeting, analytics]
+
+    - name: upi_parser
+      class: districts.finance.upi_parser.UPIParser
+      model: vector-ambient
+      description: Parses UPI transaction SMS messages via ADB
+      capabilities: [upi, sms, parsing]
+
+    - name: tax_calendar
+      class: districts.finance.tax_calendar.TaxCalendar
+      model: vector-focus
+      description: Indian FY tax deadlines and reminder system
+      capabilities: [tax, calendar, india]
+
+  health:
+    - name: fatigue_monitor
+      class: districts.health.fatigue_monitor.FatigueMonitor
+      model: vector-focus
+      description: EAR-based eye fatigue scoring from camera feed
+      capabilities: [health, camera, fatigue]
+
+    - name: sleep_tracker
+      class: districts.health.sleep_tracker.SleepTracker
+      model: vector-focus
+      description: Sleep duration inference and quality scoring
+      capabilities: [health, sleep, biometrics]
+
+    - name: exercise_logger
+      class: districts.health.exercise_logger.ExerciseLogger
+      model: vector-focus
+      description: Exercise session logging and streak tracking
+      # RR-3.7B (2026-09-16, VECTOR_TECHNICAL_KNOWLEDGE/
+      # RR3_7B_STRUCTURED_ROUTER_AUTHORIZATION_REPORT.md): "log_exercise"
+      # added. This manifest is the real, authoritative capabilities source
+      # at bootstrap -- ManifestLoader.register_all() overwrites the
+      # in-code self.capabilities set in exercise_logger.py's own __init__
+      # (confirmed live: without this entry, Governor.dispatch()'s exact
+      # `task_type in agent.capabilities` match failed and the health
+      # district's HP-lottery picked FatigueMonitor instead of this agent
+      # for the "log_exercise" action_type, even after DISTRICT_TASK_MAP
+      # routing was fixed to the correct district).
+      capabilities: [health, exercise, logging, log_exercise]
+
+    # Cleanup batch (2026-06-22): already correctly wired — run() reads
+    # flat sources/obsidian keys (not task["type"], since this is a
+    # single-operation agent) and does real work. No code change needed.
+    - name: biometrics_aggregator
+      class: districts.health.biometrics_aggregator.BiometricsAggregator
+      model: vector-focus
+      description: Aggregates biometrics from Apple Health/Oura/Strava, persists + writes Obsidian note
+      capabilities: [health, biometrics, aggregation]
+
+    # Cleanup batch (2026-06-22): had no run() at all — added one routing
+    # to the existing generate_recommendations()/health_check() methods.
+    - name: health_advisor
+      class: districts.health.health_advisor.HealthAdvisor
+      model: vector-focus
+      description: Health recommendation engine — sleep/activity/stress/medical advice from biometric trends
+      capabilities: [health_recommendations, health_check]
+
+  memory_curator:
+    - name: consolidation_bot
+      class: districts.memory_curator.consolidation_bot.ConsolidationBot
+      model: vector-reasoning
+      description: LightRAG knowledge consolidation from episodic memory
+      # KNOWN_ISSUES #21/#23: save_note/overwrite_note_personal are real
+      # task_types Governor routes here (classify_chat_intent picks them with
+      # high confidence for "note this down"-style requests), but capabilities
+      # here are theme words, not literal task_type strings — see governor.py's
+      # Task A.3 note on that mismatch. Without an exact match, dispatch fell
+      # to the HP-lottery and ran whichever agent won HP's UNRELATED default
+      # action instead (confirmed live: silently ran consolidate_old_episodes()
+      # and returned a bare episode count as the "answer"). ConsolidationBot
+      # now has a real handler for both (see consolidation_bot.py's
+      # _save_note()) — these two literal task_type strings make governor.py's
+      # existing capability-match logic route to it deterministically instead
+      # of by HP luck.
+      # 2026-07-30 (KNOWN_ISSUES #6): entity_add/knowledge_add/relation_add/
+      # knowledge_relate/knowledge_query are real task_types DISTRICT_TASK_MAP
+      # routes here (a genuine knowledge-graph capability, distinct from
+      # note-saving above) but nothing declared them as literal capabilities
+      # either — same HP-lottery-fallback gap as the original #21 bug, now
+      # closed the same way: ConsolidationBot._kg_write()/_kg_query() give
+      # them a real handler, these strings make the match deterministic.
+      # 2026-07-30 Phase 2: same gap for the literal remember/recall/
+      # memory_store/memory_query task_types (DISTRICT_TASK_MAP also routes
+      # these here) -- see _remember_fact()/_recall_query().
+      capabilities: [memory, lightrag, consolidation, save_note, overwrite_note_personal, create_note, entity_add, knowledge_add, relation_add, knowledge_relate, knowledge_query, remember, recall, memory_store, memory_query]
+
+    - name: pattern_finder
+      class: districts.memory_curator.pattern_finder.PatternFinder
+      model: vector-reasoning
+      description: Cross-memory pattern detection and insight surfacing
+      capabilities: [memory, patterns, insights]
+
+    # Task A.2 (2026-06-21): manifest_gap.md "ready to register" batch.
+    - name: context_compressor
+      class: districts.memory_curator.context_compressor.ContextCompressor
+      model: vector-focus
+      description: Smart context window manager — compresses long conversation histories
+      capabilities: [context_compression, window_management]
+
+    # 2026-09-29 SELF_DEV_P8_MEMORY_FINANCE_OPS: 2 evidence-checked specialists
+    # (districts/memory_curator/memory_curator_specialists.py). <x>_brief reports evidence
+    # completeness; <x>_check recomputes deterministically (set/dict clustering, ast parse) --
+    # no LLM call in either agent. zk-steward is NOT re-built here: it already has a real match,
+    # ZKSteward (districts/personal_growth/zk_steward.py), registered under personal_growth, not
+    # memory_curator as this spec's district map names.
+    # DECIDED 2026-09-29 (follow-up pass, was NEEDS_HUMAN): kept in personal_growth, not moved.
+    # ZKSteward is live, tested, manifest-registered, and works correctly where it is; moving a
+    # long-established agent's district for purely taxonomic reasons (no functional bug) is a
+    # real behavioral change (get_by_district() filters, manifest structure) for zero functional
+    # gain -- unlike SlackArchaeologist's same-day relocation just above in chief_of_staff/,
+    # which had no accumulated dependents yet. The spec's memory_curator grouping remains a
+    # reasonable categorization; personal_growth (alongside behavioral_nudge_engine,
+    # feedback_synthesizer) is an equally coherent one for a personal Zettelkasten tool. Revisit
+    # only if a real functional reason to move it ever comes up.
+    - name: identity_graph_operator
+      class: districts.memory_curator.memory_curator_specialists.IdentityGraphOperator
+      model: vector-focus
+      description: Identity-graph dedup brief plus deterministic duplicate-cluster detection over supplied entity records
+      capabilities: [identity_graph_brief, identity_dedup_check]
+
+    - name: lsp_index_engineer
+      class: districts.memory_curator.memory_curator_specialists.LSPIndexEngineer
+      model: vector-focus
+      description: LSP symbol-index brief plus ast-based symbol indexing and expected-symbol diff over supplied Python source
+      capabilities: [lsp_index_brief, lsp_symbol_check]
+
+  projects:
+    - name: deadline_watcher
+      class: districts.projects.deadline_watcher.DeadlineWatcher
+      model: vector-focus
+      description: T-7/3/1/0 deadline alerts for active projects
+      capabilities: [projects, deadlines, alerts]
+
+    - name: progress_tracker
+      class: districts.projects.progress_tracker.ProgressTracker
+      model: vector-focus
+      description: Milestone and task completion tracking
+      capabilities: [projects, progress, tracking]
+
+    - name: doc_writer
+      class: districts.projects.doc_writer.DocWriter
+      model: vector-reasoning
+      description: Technical documentation generation (5 doc types)
+      capabilities: [documentation, writing, projects]
+
+    - name: project_planner
+      class: districts.projects.project_planner.ProjectPlanner
+      model: vector-reasoning
+      description: Project scaffolding, timeline, and milestone planning
+      # RR-3.7B (2026-09-16, VECTOR_TECHNICAL_KNOWLEDGE/
+      # RR3_7B_STRUCTURED_ROUTER_AUTHORIZATION_REPORT.md): "create_project"
+      # added -- same real bootstrap-time capabilities source and same
+      # reason as exercise_logger's manifest entry above.
+      capabilities: [projects, planning, milestones, create_project]
+
+    # Task A.2 (2026-06-21): manifest_gap.md "ready to register" batch.
+    - name: experiment_tracker
+      class: districts.projects.experiment_tracker.ExperimentTracker
+      model: vector-reasoning
+      description: Designs and tracks controlled experiments on VECTOR's own behaviors
+      capabilities: [track_experiment, experiments]
+
+  security:
+    # Cleanup (2026-06-23): confirmed via manifest_gap.py re-scan — was claimed
+    # registered in an earlier session but never actually was. Single-purpose
+    # PromptAgent-style scanner (one real operation: scan_artifact); the
+    # "doesn't branch on type" scanner heuristic is a false positive here,
+    # same pattern as ObraCodeReviewer/SocialSimAgent found earlier.
+    - name: skill_spector
+      class: districts.security.skill_spector.SkillSpector
+      model: vector-focus
+      description: Pre-load vetting of skills/MCP manifests/repo artifacts before absorption (SkillSpector)
+      capabilities: [scan_artifact]
+
+    - name: threat_scout
+      class: districts.security.threat_scout.ThreatScout
+      model: vector-focus
+      description: Process and network threat scanning
+      capabilities: [security, threat_detection, monitoring]
+
+    - name: node_guard
+      class: districts.security.node_guard.NodeGuard
+      model: vector-focus
+      description: Registry and process integrity monitoring
+      capabilities: [security, registry, processes]
+
+    - name: malware_hunter
+      class: districts.security.malware_hunter.MalwareHunter
+      model: vector-focus
+      description: "3-layer malware detection: VT + MIME + LightGBM"
+      capabilities: [security, malware, detection]
+
+    # Task A.2 (2026-06-21): manifest_gap.md "ready to register" batch.
+    - name: data_redactor
+      class: districts.security.data_redactor.DataRedactor
+      model: vector-focus
+      description: PII and secrets redactor for VECTOR's LLM pipeline
+      capabilities: [redact, pii, secrets_redaction, data_redact]
+
+    - name: threat_detection_engineer
+      class: districts.security.threat_detection_engineer.ThreatDetectionEngineer
+      model: vector-reasoning
+      description: SIEM rule development, MITRE ATT&CK coverage mapping, detection-as-code
+      capabilities: [detection_rule, mitre_attack, siem]
+
+    # Cleanup batch (2026-06-22): the "fully built but 100% disconnected"
+    # SIEM stack from the 2026-06-21 audit — run() ignored task["type"]
+    # entirely, always returning the same hardcoded method's output.
+    - name: alert_manager
+      class: districts.security.alert_manager.AlertManager
+      model: vector-focus
+      description: Security alert lifecycle — list, acknowledge, resolve, escalate, digest
+      capabilities: [alert_management, acknowledge, escalate, list_alerts]
+
+    - name: detection_rules_engine
+      class: districts.security.detection_rules.DetectionRules
+      model: vector-focus
+      description: Detection rule store — match events against loaded rules, hot-reload
+      capabilities: [match_event, evaluate, hot_reload, list_rules]
+
+    - name: incident_playbook_runner
+      class: districts.security.incident_playbook_runner.IncidentPlaybookRunner
+      model: vector-reasoning
+      description: Executes incident response playbooks, tracks incidents, supports rollback
+      capabilities: [execute_playbook, incident_response, list_incidents, rollback]
+
+    - name: log_aggregator
+      class: districts.security.log_aggregator.LogAggregator
+      model: vector-focus
+      description: Security log ingestion, query, and retention pruning
+      capabilities: [log_query, log_aggregation, prune_retention]
+
+    - name: network_monitor
+      class: districts.security.network_monitor.NetworkMonitor
+      model: vector-focus
+      description: Connection scanning, port-scan detection, blocklist checks
+      capabilities: [network_scan, port_scan, blocklist, connection_rate]
+
+    - name: siem_pipeline
+      class: districts.security.siem_pipeline.SIEMPipeline
+      model: vector-reasoning
+      description: Aggregates log_aggregator + detection_rules + alert_manager + incident_playbook_runner into one event-processing pipeline
+      capabilities: [process_event, siem_alerts, siem_stats]
+
+    # SELF_DEV_P3_SECURITY: bounded, deterministic analysis only. These agents
+    # share the normal manifest registry and A2A bus; none executes a patch,
+    # command, test, commit, merge, or external action.
+    - name: patch_proposal_generator
+      class: districts.security.security_specialists.PatchProposalGenerator
+      model: vector-focus
+      description: Produces inert, reviewable unified-diff proposals from explicit before/after evidence
+      capabilities: [patch_proposal_brief, patch_proposal_check]
+
+    - name: patch_proposal_verifier
+      class: districts.security.security_specialists.PatchProposalVerifier
+      model: vector-focus
+      description: Parses patch proposals and caller-supplied verification evidence without applying or executing anything
+      capabilities: [patch_verification_brief, patch_verification_check]
+
+    - name: scan_inventory_analyst
+      class: districts.security.security_specialists.ScanInventoryAnalyst
+      model: vector-focus
+      description: Builds content-free scan inventories and deterministic hashes from caller-supplied artifacts
+      capabilities: [scan_inventory_brief, scan_inventory_check]
+
+    - name: scan_loader_analyst
+      class: districts.security.security_specialists.ScanLoaderAnalyst
+      model: vector-focus
+      description: Safely parses and normalizes structured JSON scan evidence
+      capabilities: [scan_load_brief, scan_load_check]
+
+    - name: scan_researcher
+      class: districts.security.security_specialists.ScanResearcher
+      model: vector-focus
+      description: Checks provenance and independent corroboration in supplied security research
+      capabilities: [scan_research_brief, scan_research_check]
+
+    - name: scan_verifier
+      class: districts.security.security_specialists.ScanVerifier
+      model: vector-focus
+      description: Deterministically compares scan coverage with the supplied artifact inventory
+      capabilities: [scan_verification_brief, scan_verification_check]
+
+    - name: agentic_identity_trust_analyst
+      class: districts.security.security_specialists.AgenticIdentityTrustAnalyst
+      model: vector-focus
+      description: Fail-closed identity, scope, expiry, signature-evidence, and audit-chain analysis
+      capabilities: [identity_trust_brief, identity_trust_check]
+
+    - name: automation_governance_analyst
+      class: districts.security.security_specialists.AutomationGovernanceAnalyst
+      model: vector-focus
+      description: Deterministic automation value, control, fallback, and human-checkpoint assessment
+      capabilities: [automation_governance_brief, automation_governance_check]
+
+    # 2026-09-30 (self-dev program follow-up, owner-approved "solve 1,2,3,4"): resolves the
+    # original P3 NEEDS_HUMAN disclosure honestly -- the gap was never a missing external
+    # blockchain data source, it was that no smart-contract code existed anywhere in VECTOR
+    # to check. The real, buildable capability is a deterministic SWC-Registry-aligned
+    # pattern scan over CALLER-SUPPLIED Solidity source (same evidence-gated model as every
+    # other Security specialist here); no live chain/RPC/explorer dependency.
+    - name: blockchain_security_auditor
+      class: districts.security.security_specialists.BlockchainSecurityAuditor
+      model: vector-focus
+      description: Deterministic SWC Registry-aligned pattern scan of supplied Solidity source (reentrancy ordering, tx.origin auth, floating pragma, unprotected selfdestruct, unchecked call returns, unguarded sensitive functions)
+      capabilities: [contract_scan_brief, contract_pattern_check]
+
+  time_calendar:
+    - name: kiit_scraper
+      class: districts.time_calendar.kiit_scraper.KIITScraper
+      model: vector-focus
+      description: Playwright-based KIIT schedule scraper
+      capabilities: [scheduling, playwright, kiit]
+
+    - name: deadline_manager
+      class: districts.time_calendar.deadline_manager.DeadlineManager
+      model: vector-focus
+      description: KIIT deadlines and academic calendar management
+      capabilities: [scheduling, deadlines, academic]
+
+    - name: time_blocker
+      class: districts.time_calendar.time_blocker.TimeBlocker
+      model: vector-focus
+      description: Deep-work time block scheduling via Google Calendar
+      capabilities: [scheduling, calendar, productivity]
+
+  relationships:
+    - name: contact_manager
+      class: districts.relationships.contact_manager.ContactManager
+      model: vector-focus
+      description: Contact book with interaction history tracking
+      capabilities: [relationships, contacts, crm]
+
+    - name: communication_analyst
+      class: districts.relationships.communication_analyst.CommunicationAnalyst
+      model: vector-reasoning
+      description: Communication style analysis and relationship health
+      capabilities: [relationships, communication, analytics]
+
+  privacy:
+    - name: privacy_enforcer
+      class: districts.privacy.privacy_enforcer.PrivacyEnforcer
+      model: vector-focus
+      description: Enforces local-vs-cloud data flow policy
+      capabilities: [privacy, data_flow, enforcement]
+
+    - name: data_flow_auditor
+      class: districts.privacy.data_flow_auditor.DataFlowAuditor
+      model: vector-reasoning
+      description: Audits what data leaves the device and to where
+      capabilities: [privacy, audit, data_flow]
+
+  # Task A.4 (2026-06-21): predictive_analytics had ZERO dispatchable agents —
+  # StrategyRecommender (its only AgentBase) had no run() of its own, so a
+  # dispatch fell through to AgentBase's generic fake-success stub. Composed
+  # the district's 3 other real, zero-arg-constructible plain classes
+  # (TimeSeriesForecaster, AnomalyPredictor, CausalSimulator + PredictionStore)
+  # behind a real run() that branches on task type. See
+  # tests/test_predictive_analytics_run.py.
+  predictive_analytics:
+    - name: strategy_recommender
+      class: districts.predictive_analytics.strategy_recommender.StrategyRecommender
+      model: vector-reasoning
+      description: Composes forecast/anomaly/causal-simulation pipeline into recommendations
+      capabilities: [predict, forecast, anomaly_prediction, detect_anomalies, time_series, causal_simulate, simulate, strategy_recommend, recommend, prediction_store]
+
+  pattern_detective:
+    - name: habit_finder
+      class: districts.pattern_detective.habit_finder.HabitFinder
+      model: vector-reasoning
+      description: Behaviour pattern detection from daily activity logs
+      capabilities: [patterns, habits, analytics]
+
+    - name: behavior_analyst
+      class: districts.pattern_detective.behavior_analyst.BehaviorAnalyst
+      model: vector-reasoning
+      description: Long-range behaviour analysis and anomaly flagging
+      capabilities: [patterns, behavior, analytics]
+
+  intelligence:
+    - name: vectorintel_agent
+      class: districts.intelligence.vectorintel_agent.VectorIntelAgent
+      model: vector-reasoning
+      description: Cross-district intelligence synthesis (Shadowbroker)
+      capabilities: [intelligence, synthesis, signals]
+
+    # Cleanup batch (2026-06-22): already correctly wired — run() branches
+    # on params["action"] (not task["type"], a different valid convention
+    # the audit heuristic didn't detect), dispatching to 7 real methods.
+    # No code change needed, just registering it.
+    - name: social_sim_agent
+      class: districts.intelligence.social_sim_agent.SocialSimAgent
+      model: vector-reasoning
+      description: Social simulation — ontology/graph building, persona generation, full simulation runs
+      capabilities: [social_simulate, build_ontology, build_graph, generate_personas]
+
+  news_trends:
+    - name: ai_news_bot
+      class: districts.news_trends.ai_news_bot.AINewsBot
+      model: vector-focus
+      description: Daily AI research news aggregation and briefing
+      capabilities: [news, ai_research, briefing]
+
+    - name: market_trends_bot
+      class: districts.news_trends.market_trends_bot.MarketTrendsBot
+      model: vector-focus
+      description: Market signal monitoring from Reddit, HN, G2
+      capabilities: [news, markets, trends]
+
+    - name: opportunity_spotter
+      class: districts.news_trends.opportunity_spotter.OpportunitySpotter
+      model: vector-reasoning
+      description: Opportunity detection from news and trend signals
+      capabilities: [intelligence, opportunities, signals]
+
+    - name: social_miner
+      class: districts.news_trends.social_miner.SocialMiner
+      model: vector-focus
+      description: Mine user problem statements from Reddit + HN (30-day window)
+      capabilities: [social_mining, problems, reddit, hackernews]
+
+    - name: problem_clusterer
+      class: districts.news_trends.problem_clusterer.ProblemClusterer
+      model: vector-reasoning
+      description: Cluster mined problems, rank by demand, flag software-solvable
+      capabilities: [clustering, ranking, demand_analysis]
+
+    - name: venture_pipeline
+      class: districts.news_trends.venture_pipeline.VenturePipeline
+      model: vector-reasoning
+      description: End-to-end side-hustle pipeline - mine, cluster, validate, draft, report
+      capabilities: [venture, orchestration, side_hustle]
+
+  design:
+    - name: ui_designer
+      class: districts.design.ui_designer.UIDesigner
+      model: vector-reasoning
+      description: UI component specs, design tokens, dashboard layout generation
+      capabilities: [ui_design, design_tokens, components, accessibility]
+
+    - name: ux_researcher
+      class: districts.design.ux_researcher.UXResearcher
+      model: vector-reasoning
+      description: UX research - journey maps, personas, usability heuristics
+      capabilities: [ux_research, personas, journey_maps]
+
+    - name: image_prompt_engineer
+      class: districts.design.image_prompt_engineer.ImagePromptEngineer
+      model: vector-focus
+      description: Optimized AI image generation prompts (ComfyUI, SD)
+      capabilities: [image_prompts, comfyui, stable_diffusion]
+
+    - name: brand_guardian
+      class: districts.design.design_specialists.BrandGuardian
+      model: vector-reasoning
+      description: Evidence-based brand identity and consistency briefing
+      capabilities: [brand_identity, brand_consistency]
+
+    - name: inclusive_visuals_specialist
+      class: districts.design.design_specialists.InclusiveVisualsSpecialist
+      model: vector-reasoning
+      description: Evidence-based inclusive visual and prompt review
+      capabilities: [inclusive_visual_review, inclusive_prompt]
+
+    - name: ux_architect
+      class: districts.design.design_specialists.UXArchitect
+      model: vector-reasoning
+      description: Evidence-based UX and information-architecture briefing
+      capabilities: [ux_architecture, information_architecture]
+
+    - name: visual_storyteller
+      class: districts.design.design_specialists.VisualStoryteller
+      model: vector-reasoning
+      description: Evidence-based visual narrative and storyboard briefing
+      capabilities: [visual_storyboard, visual_narrative]
+
+    - name: whimsy_injector
+      class: districts.design.design_specialists.WhimsyInjector
+      model: vector-focus
+      description: Evidence-based purposeful delight and microinteraction review
+      capabilities: [whimsy_design, microinteraction_audit]
+
+    - name: level_designer
+      class: districts.design.design_specialists.LevelDesigner
+      model: vector-reasoning
+      description: Evidence-based level-flow briefing
+      capabilities: [level_design, level_flow]
+
+    - name: narrative_designer
+      class: districts.design.design_specialists.NarrativeDesigner
+      model: vector-reasoning
+      description: Evidence-based narrative arc briefing
+      capabilities: [narrative_design, narrative_arc]
+
+    - name: technical_artist
+      class: districts.design.design_specialists.TechnicalArtist
+      model: vector-reasoning
+      description: Evidence-based technical art and asset-pipeline briefing
+      capabilities: [technical_art, asset_pipeline]
+
+    - name: visionos_spatial_engineer
+      class: districts.design.design_specialists.VisionOSSpatialEngineer
+      model: vector-reasoning
+      description: Evidence-based spatial design and comfort briefing
+      capabilities: [spatial_design, spatial_comfort]
+
+    - name: xr_immersive_developer
+      class: districts.design.design_specialists.XRImmersiveDeveloper
+      model: vector-reasoning
+      description: Evidence-based immersive design and flow briefing
+      capabilities: [immersive_design, immersive_flow]
+
+    - name: xr_interface_architect
+      class: districts.design.design_specialists.XRInterfaceArchitect
+      model: vector-reasoning
+      description: Evidence-based XR interface and interaction briefing
+      capabilities: [xr_interface, xr_interaction]
+
+    - name: specialized_cultural_intelligence_strategist
+      class: districts.design.design_specialists.CulturalIntelligenceStrategist
+      model: vector-reasoning
+      description: Evidence-based cultural intelligence briefing requiring local review
+      capabilities: [cultural_review, cultural_brief]
+
+  data_analytics:
+    - name: analytics_reporter
+      class: districts.data_analytics.analytics_reporter.AnalyticsReporter
+      model: vector-reasoning
+      description: Weekly analytics briefs from episodic memory - metrics, anomalies
+      capabilities: [analytics, reporting, anomaly_detection]
+
+    - name: data_engineer
+      class: districts.data_analytics.data_engineer.DataEngineer
+      model: vector-focus
+      description: Data pipeline tasks - extraction, transformation, validation
+      capabilities: [data_pipelines, etl, validation]
+
+    - name: performance_benchmarker
+      class: districts.data_analytics.performance_benchmarker.PerformanceBenchmarker
+      model: vector-focus
+      description: Benchmark routing, models and system performance
+      capabilities: [benchmarking, performance, metrics]
+
+    # Task A.2 (2026-06-21): manifest_gap.md "ready to register" batch.
+    - name: performance_optimizer
+      class: districts.data_analytics.performance_optimizer.PerformanceOptimizer
+      model: vector-coder
+      description: Performance analysis and optimization — profiles code, identifies bottlenecks
+      capabilities: [performance_optimization, bottleneck_analysis]
+
+  learning:
+    - name: course_tracker
+      class: districts.learning.course_tracker.CourseTracker
+      model: vector-focus
+      description: Course completion tracking and spaced repetition
+      capabilities: [learning, courses, tracking]
+
+    - name: video_ingestor
+      class: districts.learning.video_ingestor.VideoIngestor
+      model: vector-reasoning
+      description: Any-URL video ingestion with concept extraction
+      capabilities: [learning, video, yt_dlp]
+
+    # Cleanup batch (2026-06-22): both had a broken hasattr() guard checking
+    # a method name that never existed (typo/placeholder) — always dead code,
+    # run() always fell through to a fake-success no-op. Now real type-branching.
+    - name: concept_extractor
+      class: districts.learning.concept_extractor.ConceptExtractor
+      model: vector-reasoning
+      description: Extracts key concepts from text, suggests learning prerequisites
+      capabilities: [extract_concepts, suggest_prerequisites]
+
+    - name: note_organizer
+      class: districts.learning.note_organizer.NoteOrganizer
+      model: vector-reasoning
+      description: Organizes notes by topic, summarizes, links related concepts
+      capabilities: [organize_notes, summarize_notes, link_notes]
+
+  startups:
+    - name: market_scanner
+      class: districts.startups.market_scanner.MarketScanner
+      model: vector-reasoning
+      description: Nightly HN/Reddit/G2 market opportunity scan
+      capabilities: [startups, market_research, scanning]
+
+    - name: idea_validator
+      class: districts.startups.idea_validator.IdeaValidator
+      model: vector-reasoning
+      description: Startup idea validation against market signals
+      capabilities: [startups, validation, ideas]
+
+    - name: competitor_spy
+      class: districts.startups.competitor_spy.CompetitorSpy
+      model: vector-focus
+      description: Competitor monitoring and feature-gap analysis
+      capabilities: [startups, competitive_intelligence, monitoring]
+
+    - name: revenue_modeler
+      class: districts.startups.revenue_modeler.RevenueModeler
+      model: vector-reasoning
+      description: Revenue model projection and unit economics
+      capabilities: [startups, finance, modeling]
+
+  calls:
+    - name: call_screener
+      class: districts.calls.call_screener.CallScreener
+      model: vector-focus
+      description: Inbound call screening and priority classification
+      capabilities: [calls, voice, screening, call_screen]
+
+    # Cleanup batch (2026-06-22): run()-branching fix.
+    - name: transcription_bot
+      class: districts.calls.transcription_bot.TranscriptionBot
+      model: vector-focus
+      description: Whisper-based audio transcription, summarization, action-item extraction
+      capabilities: [transcribe_audio, transcribe_live, summarize_transcript, extract_action_items]
+
+    - name: voice_responder
+      class: districts.calls.voice_responder.VoiceResponder
+      model: vector-focus
+      description: Text response generation + Kokoro TTS for voice interaction pipelines
+      capabilities: [generate_response, text_to_speech, respond_to_audio]
+
+  karpathy_lab:
+    - name: autoresearch_runner
+      class: districts.karpathy_lab.autoresearch_runner.AutoresearchRunner
+      model: vector-reasoning
+      description: Automated 30min Karpathy study session runner
+      capabilities: [learning, research, karpathy]
+
+    - name: code_typer
+      class: districts.karpathy_lab.code_typer.CodeTyper
+      model: vector-coder
+      description: Deliberate code practice and typing drill tracker
+      capabilities: [learning, coding, practice]
+
+    # Cleanup batch (2026-06-22): run()-branching fix.
+    - name: architecture_builder
+      class: districts.karpathy_lab.architecture_builder.ArchitectureBuilder
+      model: vector-reasoning
+      description: Designs model architectures, generates training configs, estimates compute requirements
+      capabilities: [design_architecture, generate_config, estimate_compute]
+
+    - name: data_prep
+      class: districts.karpathy_lab.data_prep.DataPrep
+      model: vector-coder
+      description: Dataset download, preprocessing, and tokenization for training pipelines
+      capabilities: [download_dataset, preprocess_data, tokenize_data]
+
+    - name: karpathy_progress_tracker
+      class: districts.karpathy_lab.progress_tracker.ProgressTracker
+      model: vector-focus
+      description: Training run lifecycle tracking — start, log steps, progress, reports
+      capabilities: [start_run, log_step, get_progress, generate_report]
+
+  languages:
+    - name: japanese_coach
+      class: districts.languages.japanese_coach.JapaneseCoach
+      model: vector-multilingual
+      description: Japanese language coaching and vocabulary practice
+      capabilities: [languages, japanese, coaching]
+      notes: "Cleanup batch (2026-06-22): this entry pre-dated the cleanup effort and was wrongly assumed correct — run() always called track_progress() regardless of type, the same bug as the other 4 language coaches. Fixed alongside them; was the reference pattern others were told to mirror, but the reference itself was broken. Capability tag keeps language name (not literal task types like practice_vocabulary) since all 5 coaches share identical task-type vocabularies — the language name is what distinguishes them for capability-aware dispatch."
+
+    # Cleanup batch (2026-06-22): run()-branching fix, same pattern as japanese_coach above.
+    # Capability tags use language name (not literal task types) for the same
+    # reason as japanese_coach — all 5 coaches share an identical task-type
+    # vocabulary, so the language name is the only thing that disambiguates them.
+    - name: assamese_coach
+      class: districts.languages.assamese_coach.AssameseCoach
+      model: vector-multilingual
+      description: Assamese language coaching and vocabulary practice
+      capabilities: [languages, assamese, coaching]
+
+    - name: bengali_coach
+      class: districts.languages.bengali_coach.BengaliCoach
+      model: vector-multilingual
+      description: Bengali language coaching and vocabulary practice
+      capabilities: [languages, bengali, coaching]
+
+    - name: english_coach
+      class: districts.languages.english_coach.EnglishCoach
+      model: vector-multilingual
+      description: English language coaching and vocabulary practice
+      capabilities: [languages, english, coaching]
+
+    - name: hindi_coach
+      class: districts.languages.hindi_coach.HindiCoach
+      model: vector-multilingual
+      description: Hindi language coaching and vocabulary practice
+      capabilities: [languages, hindi, coaching]
+
+  interview_prep:
+    - name: mock_interviewer
+      class: districts.interview_prep.mock_interviewer.MockInterviewer
+      model: vector-reasoning
+      description: 50-100 page technical interview mock sessions
+      capabilities: [interview, mock, assessment]
+
+    - name: company_researcher
+      class: districts.interview_prep.company_researcher.CompanyResearcher
+      model: vector-reasoning
+      description: Company background research for interview prep
+      capabilities: [interview, research, companies]
+
+    # Task A.2 (2026-06-21): manifest_gap.md "ready to register" batch.
+    - name: recruitment_bot
+      class: districts.interview_prep.recruitment_bot.RecruitmentBot
+      model: vector-reasoning
+      description: Placement and recruitment specialist
+      capabilities: [recruitment, placement]
+
+    # Cleanup batch (2026-06-22): run()-branching fix.
+    - name: feedback_analyst
+      class: districts.interview_prep.feedback_analyst.FeedbackAnalyst
+      model: vector-reasoning
+      description: Interview feedback analysis, improvement-area identification, progress tracking
+      capabilities: [analyze_feedback, identify_improvements, track_progress]
+
+    - name: report_generator
+      class: districts.interview_prep.report_generator.ReportGenerator
+      model: vector-reasoning
+      description: Interview session/progress report generation, export, company-specific prep
+      capabilities: [session_report, progress_report, export_report, company_specific]
+
+  agency:
+    - name: content_strategist
+      class: districts.agency.content_strategist.ContentStrategist
+      model: vector-reasoning
+      description: Content strategy and editorial calendar planning
+      capabilities: [agency, content, strategy]
+
+    # Task A.2 (2026-06-21): manifest_gap.md "ready to register" batch.
+    - name: proposal_strategist
+      class: districts.agency.proposal_strategist.ProposalStrategist
+      model: vector-reasoning
+      description: Proposal writing and win strategy specialist
+      # 2026-10-31: "roi" is the exact task_type governor.py routes (and
+      # ProposalStrategist's own __init__ already declares it + has a real
+      # task_type == "roi" branch) -- same manifest-overwrite gap as
+      # gap_analyst/the coding reviewers, confirmed live via /command
+      # ("Processed: roi" stub despite the real handler existing).
+      capabilities: [proposal, win_strategy, rfp, roi]
+
+    - name: sales_strategist
+      class: districts.agency.sales_strategist.SalesStrategist
+      model: vector-reasoning
+      description: Outbound prospecting, ICE-scored pipeline, deal strategy, outreach sequences
+      capabilities: [sales, outbound, pipeline, deal_strategy]
+
+    # Cleanup batch (2026-06-22): run()-branching fix.
+    - name: client_manager
+      class: districts.agency.client_manager.ClientManager
+      model: vector-focus
+      description: Client relationship management — engagement tracking, lifetime value, churn risk
+      capabilities: [add_client, get_client, list_clients, update_client, delete_client, track_engagement, get_top_clients, client_summary, get_at_risk_clients]
+
+    - name: performance_tracker_agency
+      class: districts.agency.performance_tracker.PerformanceTracker
+      model: vector-focus
+      description: Time-series metric tracking, trend detection, anomaly alerts
+      capabilities: [track_metric, get_trend, alert_anomaly, active_alerts, acknowledge_alert, get_metric_summary, get_comparison, remove_metric]
+
+    # SELF_DEV_P6 follow-up (2026-09-29): deterministic evidence-gated sales specialists.
+    - name: account_strategist
+      class: districts.agency.agency_specialists.AccountStrategist
+      model: vector-reasoning
+      description: Account health and expansion-risk scoring from caller-supplied account evidence
+      capabilities: [acct_health_brief, acct_health_check]
+
+    - name: deal_strategist
+      class: districts.agency.agency_specialists.DealStrategist
+      model: vector-reasoning
+      description: MEDDPICC completeness and risk check for one supplied deal
+      capabilities: [deal_meddpicc_brief, deal_meddpicc_check]
+
+    - name: sales_engineer
+      class: districts.agency.agency_specialists.SalesEngineer
+      model: vector-reasoning
+      description: Technical requirements coverage check against a supplied solution design
+      capabilities: [tech_fit_brief, tech_fit_check]
+
+    - name: outbound_sequence_strategist
+      class: districts.agency.agency_specialists.OutboundSequenceStrategist
+      model: vector-focus
+      description: Outreach sequence cadence and channel-diversity validation
+      capabilities: [out_seq_brief, out_seq_check]
+
+    - name: pipeline_velocity_analyst
+      class: districts.agency.agency_specialists.PipelineVelocityAnalyst
+      model: vector-reasoning
+      description: Pipeline velocity and stage conversion math from supplied transitions
+      capabilities: [pipe_velocity_brief, pipe_velocity_check]
+
+    - name: proposal_coverage_strategist
+      class: districts.agency.agency_specialists.ProposalCoverageStrategist
+      model: vector-reasoning
+      description: Proposal requirements-coverage verification from supplied capability lists
+      capabilities: [prop_coverage_brief, prop_coverage_check]
+
+    # 2026-09-30 (self-dev program follow-up, owner-approved "solve 1,2,3,4"): re-examined the
+    # 10 personas P6's original pass left honestly not-built. 2 are genuinely buildable with the
+    # same caller-supplied-evidence model as the agents above; the other 8 stay not-built (6 have
+    # no plausible use case for a personal-owner system, 1 -- customer-service -- duplicates the
+    # existing ops.SupportResponder). Full detail: SELF_DEV_P6_AGENCY.md addendum.
+    - name: sales_coach
+      class: districts.agency.agency_specialists.SalesCoach
+      model: vector-focus
+      description: Sales call rubric-coverage check, collapsing sales-coach and sales-discovery-coach (identical capability, different caller-supplied rubric)
+      capabilities: [sales_coaching_brief, sales_coaching_check]
+
+    - name: sales_data_extraction_agent
+      class: districts.agency.agency_specialists.SalesDataExtractionAgent
+      model: vector-focus
+      description: MTD/YTD sales totals extracted from supplied raw records, with malformed rows flagged
+      capabilities: [sales_data_extraction_brief, sales_data_extraction_check]
+
+    # 2026-09-30 (owner corrected an earlier "no plausible use case" call by pointing to the
+    # Blueprint's Four Waves plan): loan-officer-assistant and real-estate-buyer-seller are named
+    # together as Wave 3 vertical candidates ("(C) Industries — Four Waves.md"), and the plan's own
+    # sequencing law explicitly permits VECTOR to "research and build ahead" of a wave.
+    # recruitment-specialist fits Wave 2's agentic-back-office-for-SMBs services. All three follow
+    # the same caller-supplied-evidence model as the rest of this district.
+    - name: loan_officer_assistant
+      class: districts.agency.agency_specialists.LoanOfficerAssistant
+      model: vector-focus
+      description: Loan eligibility-criteria check (DTI/LTV/down-payment/credit-score) against supplied applicant financials -- not a lending decision or advice
+      capabilities: [loan_eligibility_brief, loan_eligibility_check]
+
+    - name: property_match_analyst
+      class: districts.agency.agency_specialists.PropertyMatchAnalyst
+      model: vector-focus
+      description: Buyer-requirement vs. supplied-listings match report
+      capabilities: [property_match_brief, property_match_check]
+
+    - name: recruitment_specialist
+      class: districts.agency.agency_specialists.RecruitmentSpecialist
+      model: vector-focus
+      description: Candidate-vs-requisition fit check (skills, experience, certifications)
+      capabilities: [recruitment_fit_brief, recruitment_fit_check]
+
+  investment:
+    - name: stock_analyst
+      class: districts.investment.stock_analyst.StockAnalyst
+      model: vector-reasoning
+      description: NSE/BSE fundamental and technical analysis (ANALYSIS ONLY)
+      capabilities: [investment, stocks, analysis]
+      notes: "ANALYSIS ONLY — never executes trades"
+
+    - name: sentiment_bot
+      class: districts.investment.sentiment_bot.SentimentBot
+      model: vector-focus
+      description: Market sentiment analysis from news and social data
+      capabilities: [investment, sentiment, nlp]
+
+    - name: trading_conductor
+      class: districts.investment.trading_conductor_agent.TradingConductorAgent
+      model: vector-reasoning
+      description: Multi-agent 11-node trading pipeline (analysts -> debate -> risk -> portfolio manager), ANALYSIS ONLY — never executes real trades
+      capabilities: [investment, trading_analysis]
+      notes: "Verified LIVE 2026-06-21 — fixes in core/config.py + core/trading/graph/setup.py. Registered here so the trader Hand's task_type=trading_analysis actually reaches this class instead of stock_analyst/sentiment_bot (governor.dispatch() previously picked by raw HP only, ignoring task type)."
+
+    # Task A.2 (2026-06-21): manifest_gap.md "ready to register" batch.
+    # Also fixed a real bug found along the way: core/api/routers/investment.py's
+    # /analyze, /dcf, /alpha, /backtest, /geopolitics endpoints resolved
+    # FinAgentAgent via a module path that has never existed
+    # ("vector_finagent_agent" — no such file; real file is finagent_agent.py),
+    # silently 503'ing every call. Fixed in that file; regression test at
+    # tests/test_investment_router_agent_paths.py.
+    - name: execution_engine
+      class: districts.investment.execution_engine.ExecutionEngine
+      model: vector-focus
+      description: Paper-first order execution engine with full safety stack — never live trades unless paper_trading=False is explicitly set
+      capabilities: [place_order, order_history, order_summary]
+      notes: "Paper trading by default — see core config investment.paper_trading"
+
+    - name: finagent_agent
+      class: districts.investment.finagent_agent.FinAgentAgent
+      model: vector-reasoning
+      description: VECTOR's financial intelligence agent — powered by the FinAgent suite (analysis only)
+      capabilities: [investor_analysis, corporate_finance, alpha_discovery, quant_backtest, geopolitics, vt_research, list_skills, portfolio_summary]
+
+    - name: hedgebot_agent
+      class: districts.investment.hedgebot_agent.HedgeBotAgent
+      model: vector-reasoning
+      description: VECTOR's autonomous hedge fund agent — Solana swap execution is RED-gated through PermissionGateway
+      capabilities: [hedge_run, hedge_status]
+      notes: "solana_execute requires PermissionGateway approval + SOLANA_PRIVATE_KEY/JUPITER_API_KEY env vars (absent as of 2026-06-21 soak) — fails closed without both."
+
+    # Cleanup batch (2026-06-22): run()-branching fix. ANALYSIS ONLY — none
+    # of these place real orders (confirmed: backtest/fundamentals/technical
+    # are read-only analysis by design, same convention as stock_analyst).
+    - name: backtest_agent
+      class: districts.investment.backtest_agent.BacktestAgent
+      model: vector-reasoning
+      description: VT research/backtest pipeline — analysis only
+      capabilities: [vt_research, quant_research, vt_backtest, shadow_account, vt_swarm, vt_skills, vt_export]
+      notes: "ANALYSIS ONLY — never executes trades"
+
+    - name: fundamentals_bot
+      class: districts.investment.fundamentals_bot.FundamentalsBot
+      model: vector-reasoning
+      description: Fundamentals analysis — valuation, financials, sector comparison, dividends
+      capabilities: [check_valuation, analyze_financials, compare_to_sector, dividend_analysis]
+      notes: "ANALYSIS ONLY — never executes trades"
+
+    - name: technical_bot
+      class: districts.investment.technical_bot.TechnicalBot
+      model: vector-reasoning
+      description: Technical analysis — price data, pattern detection, indicators
+      capabilities: [get_price_data, detect_patterns, calculate_indicators]
+      notes: "ANALYSIS ONLY — never executes trades"
+
+  content:
+    - name: script_generator
+      class: districts.content.script_generator.ScriptGenerator
+      model: vector-reasoning
+      description: YouTube/Reel script generation with SEO hooks
+      capabilities: [content, scripts, youtube]
+
+    # Cleanup (2026-06-23): confirmed via manifest_gap.py re-scan — was claimed
+    # registered in an earlier session but never actually was. Single-purpose
+    # agent (one real operation: build_storyboard); same false-positive
+    # "doesn't branch on type" scanner pattern as skill_spector above.
+    - name: asset_video_pipeline
+      class: districts.content.asset_video_pipeline.AssetVideoPipelineAgent
+      model: vector-focus
+      description: Asset-aware storyboard generation from user photos/videos (Pixelle-Video)
+      capabilities: [build_storyboard]
+
+    - name: comfyui_adapter
+      class: districts.content.comfyui_adapter.ComfyUIAdapter
+      model: vector-focus
+      description: ComfyUI workflow adapter for image/video generation
+      capabilities: [content, comfyui, image_generation]
+
+    # Repo integration (docs/repo_analysis/youtube-automation-agent.md):
+    # live YouTube trending harvest + competitor channel analysis.
+    - name: youtube_trend_scout
+      class: districts.content.youtube_trends.YouTubeTrendScout
+      model: vector-focus
+      description: Live YouTube trending-topic harvest + competitor channel keyword analysis
+      capabilities: [youtube_trending, fetch_trending, youtube_competitor, analyze_competitor]
+
+    # Cleanup batch (2026-06-22): Group A (had a run() but keyed off
+    # params["action"] only, no task["type"] support, or ignored type
+    # entirely) — fixed to accept task["type"] as primary dispatch key.
+    - name: media_studio_agent
+      class: districts.content.media_studio_agent.MediaStudioAgent
+      model: vector-focus
+      description: Image/video generation studio — t2i, i2i, t2v, i2v, lipsync, background removal, upscale
+      capabilities: [generate_image, generate_i2i, generate_video, animate_image, lipsync, background_remove, upscale, media_status, list_models]
+
+    - name: video_generator
+      class: districts.content.video_generator.VideoGenerator
+      model: vector-reasoning
+      description: Video title/thumbnail generation, tag generation, HTML-to-video rendering
+      capabilities: [title_thumbnail, generate_tags, render_html]
+
+    - name: video_pipeline
+      class: districts.content.video_pipeline.VideoPipelineAgent
+      model: vector-reasoning
+      description: End-to-end content video pipeline — script, narration, captions, upload, job tracking
+      capabilities: [create_and_upload, job_status, job_queue, job_history]
+
+    - name: website_to_video
+      class: districts.content.website_to_video.WebsiteToVideoAgent
+      model: vector-focus
+      description: Website screen-capture-to-video, title cards, data viz renders, background removal
+      capabilities: [capture_url, title_card, data_viz, remove_bg]
+
+    # Cleanup batch (2026-06-22): Group B (had no run() of their own at
+    # all, silently inheriting the AgentBase fake-success stub) — added
+    # real run() methods routing to each class's existing real methods.
+    - name: caption_generator
+      class: districts.content.caption_generator.CaptionGenerator
+      model: vector-focus
+      description: Caption/subtitle generation, highlight captions, caption translation
+      capabilities: [generate_captions, generate_subtitles, generate_highlight_captions, translate_captions]
+
+    - name: content_scheduler
+      class: districts.content.content_scheduler.ContentScheduler
+      model: vector-focus
+      description: Multi-platform post scheduling, publish execution, job summary
+      capabilities: [schedule_post, run_pending, summary]
+
+    - name: uploader
+      class: districts.content.uploader.Uploader
+      model: vector-focus
+      description: Multi-platform video upload (YouTube/Instagram/TikTok/Twitter), scheduling, history
+      capabilities: [upload_youtube, upload_instagram, upload_tiktok, upload_twitter, schedule_upload, execute_scheduled_uploads, upload_history]
+
+    - name: video_merger
+      class: districts.content.video_merger.VideoMerger
+      model: vector-focus
+      description: FFmpeg-based clip merging, transitions, background music, trim, audio extraction, subtitle burn-in
+      capabilities: [merge_clips, add_background_music, add_transitions, trim_video, extract_audio, add_subtitles]
+
+    - name: voice_generator
+      class: districts.content.voice_generator.VoiceGenerator
+      model: vector-focus
+      description: Kokoro TTS voice generation, owner voice cloning, batch synthesis, SSML
+      capabilities: [generate_voice, generate_in_my_voice, clone_voice, get_voices, adjust_voice_speed, generate_batch, text_to_ssml]
+
+  marketing:
+    - name: seo_specialist
+      class: districts.marketing.seo_specialist.SEOSpecialist
+      model: vector-reasoning
+      description: SEO auditing, keyword research, and on-page optimisation
+      capabilities: [marketing, seo, audit]
+
+    - name: geo_optimizer
+      class: districts.marketing.geo_optimizer_agent.GEOOptimizerAgent
+      model: vector-reasoning
+      description: GEO score agent — AI search citation auditor (0-100)
+      capabilities: [marketing, geo, ai_citation, seo]
+
+    - name: ai_citation_strategist
+      class: districts.marketing.ai_citation_strategist.AICitationStrategist
+      model: vector-reasoning
+      description: Strategy for maximising AI engine citations and AEO
+      capabilities: [marketing, ai_citation, aeo, content]
+
+    - name: growth_hacker
+      class: districts.marketing.growth_hacker.GrowthHacker
+      model: vector-reasoning
+      description: Growth loops, viral mechanics, north-star metric analysis
+      capabilities: [marketing, growth, analytics, research]
+
+    # Task A.2 (2026-06-21): manifest_gap.md "ready to register" batch.
+    - name: ads_orchestrator_agent
+      class: districts.marketing.ads_orchestrator_agent.AdsOrchestratorAgent
+      model: vector-reasoning
+      description: Multi-platform ads intelligence agent
+      capabilities: [ads_orchestration, multi_platform_ads]
+
+    - name: competitor_intel_agent
+      class: districts.marketing.competitor_intel_agent.CompetitorIntelAgent
+      model: vector-reasoning
+      description: Competitive intelligence specialist — profiling, market landscape, strategic gaps, evidence-tiered X-Ray briefs
+      capabilities: [competitor_intel, profile_competitor, market_landscape, strategic_gaps, xray_brief]
+
+    - name: content_creator
+      class: districts.marketing.content_creator.ContentCreator
+      model: vector-reasoning
+      description: Multi-format content creation and repurposing specialist
+      capabilities: [content_creation, repurposing]
+
+    - name: cro_agent
+      class: districts.marketing.cro_agent.CROAgent
+      model: vector-reasoning
+      description: Conversion Rate Optimization specialist
+      capabilities: [cro, conversion_optimization]
+
+    - name: social_media_strategist
+      class: districts.marketing.social_media_strategist.SocialMediaStrategist
+      model: vector-reasoning
+      description: Cross-platform social media strategy and content generation
+      capabilities: [social_media_strategy]
+
+    # Cleanup batch (2026-06-22): run()-branching fix. AdsOrchestratorAgent
+    # does NOT self-load these (confirmed via grep — no AmazonAdsAgent/
+    # GoogleAdsAgent/MetaAdsAgent import in ads_orchestrator_agent.py), so
+    # they're genuinely standalone, not swarm-reachable duplicates.
+    - name: amazon_ads_agent
+      class: districts.marketing.amazon_ads_agent.AmazonAdsAgent
+      model: vector-reasoning
+      description: Amazon Ads account audit
+      capabilities: [amazon_ads_audit]
+
+    - name: attribution_agent
+      class: districts.marketing.attribution_agent.AttributionAgent
+      model: vector-reasoning
+      description: Consent-mode and attribution audit
+      capabilities: [attribution_audit, audit_consent_mode]
+
+    - name: google_ads_agent
+      class: districts.marketing.google_ads_agent.GoogleAdsAgent
+      model: vector-reasoning
+      description: Google Ads account audit, copy generation, performance, landing page review
+      capabilities: [google_ads_audit, google_ads_copy, ads_performance, google_ads_landing]
+
+    - name: sgtm_agent
+      class: districts.marketing.sgtm_agent.SGTMAgent
+      model: vector-reasoning
+      description: Server-side GTM health check
+      capabilities: [sgtm_health]
+
+    # Cleanup batch (2026-06-22): already correctly wired — run() branches
+    # on params["action"] (not task["type"], a convention the audit
+    # heuristic didn't detect), with a real per-action dispatch and proper
+    # "unknown action" error. No code change needed, just registering them.
+    - name: meta_ads_agent
+      class: districts.marketing.meta_ads_agent.MetaAdsAgent
+      model: vector-reasoning
+      description: Meta Ads account audit, creative fatigue diagnosis, ROAS analysis, creative briefs
+      capabilities: [meta_ads_audit, meta_ads_creative, meta_ads_performance, meta_ads]
+
+    - name: seo_agent
+      class: districts.marketing.seo_agent.SEOAgent
+      model: vector-reasoning
+      description: SEO audit, keyword research, broken links, pagespeed, schema markup, GEO optimization
+      capabilities: [seo_audit, keyword_research, broken_links, pagespeed, schema_markup, geo_optimize]
+
+    - name: seo_portfolio
+      class: districts.marketing.seo_portfolio.SEOPortfolioAgent
+      model: vector-reasoning
+      description: Multi-site SEO portfolio review, onboarding, weekly review, page improvement, drop investigation
+      capabilities: [seo_portfolio_review, seo_onboard, seo_weekly_review, seo_improve_page, seo_investigate_drop]
+
+    # 2026-09-28 SELF_DEV_P5_MARKETING: 29 evidence-checked specialists (districts/marketing/marketing_specialists.py).
+    # <x>_brief reports evidence completeness; <x>_check recomputes limits/metrics from supplied data (no LLM verdict).
+    # marketing-agentic-search-optimizer and marketing-ai-citation-strategist are NOT re-built: ai_citation_strategist
+    # above already covers AEO/GEO and agentic task-completion checks.
+    - name: app_store_optimizer
+      class: districts.marketing.marketing_specialists.AppStoreOptimizer
+      model: vector-reasoning
+      description: App store listing brief plus deterministic title/subtitle/keyword length and keyword-presence checks
+      capabilities: [aso_listing_brief, aso_listing_check]
+
+    - name: baidu_seo_specialist
+      class: districts.marketing.marketing_specialists.BaiduSEOSpecialist
+      model: vector-reasoning
+      description: Baidu SEO brief plus on-page target-keyword presence check (needs local review for Baidu policy)
+      capabilities: [baidu_seo_brief, baidu_seo_check]
+
+    - name: bilibili_content_strategist
+      class: districts.marketing.marketing_specialists.BilibiliContentStrategist
+      model: vector-reasoning
+      description: Bilibili content brief plus title length check
+      capabilities: [bilibili_content_brief, bilibili_title_check]
+
+    - name: book_co_author
+      class: districts.marketing.marketing_specialists.BookCoAuthor
+      model: vector-reasoning
+      description: Book outline brief plus outline structure check (chapters present, non-empty, unique)
+      capabilities: [book_coauthor_brief, book_outline_check]
+
+    - name: carousel_growth_engine
+      class: districts.marketing.marketing_specialists.CarouselGrowthEngine
+      model: vector-reasoning
+      description: Carousel growth brief plus slide-count and caption length checks
+      capabilities: [carousel_growth_brief, carousel_slide_check]
+
+    - name: china_ecommerce_operator
+      class: districts.marketing.marketing_specialists.ChinaEcommerceOperator
+      model: vector-reasoning
+      description: China e-commerce operations brief; no deterministic check exists (verified=false), needs local operator
+      capabilities: [china_ecom_brief, china_ecom_check]
+
+    - name: china_market_localization_strategist
+      class: districts.marketing.marketing_specialists.ChinaMarketLocalizationStrategist
+      model: vector-reasoning
+      description: China localization brief; no deterministic check exists (verified=false), needs native reviewer
+      capabilities: [china_localization_brief, china_localization_check]
+
+    - name: cross_border_ecommerce
+      class: districts.marketing.marketing_specialists.CrossBorderEcommerce
+      model: vector-reasoning
+      description: Cross-border e-commerce brief plus landed-cost margin recomputation per SKU
+      capabilities: [cross_border_brief, cross_border_margin_check]
+
+    - name: douyin_strategist
+      class: districts.marketing.marketing_specialists.DouyinStrategist
+      model: vector-reasoning
+      description: Douyin strategy brief; no deterministic check exists (verified=false), needs local reviewer
+      capabilities: [douyin_strategy_brief, douyin_content_check]
+
+    - name: instagram_curator
+      class: districts.marketing.marketing_specialists.InstagramCurator
+      model: vector-reasoning
+      description: Instagram curation brief plus caption length check
+      capabilities: [instagram_curation_brief, instagram_caption_check]
+
+    - name: kuaishou_strategist
+      class: districts.marketing.marketing_specialists.KuaishouStrategist
+      model: vector-reasoning
+      description: Kuaishou strategy brief; no deterministic check exists (verified=false), needs local reviewer
+      capabilities: [kuaishou_strategy_brief, kuaishou_content_check]
+
+    - name: linkedin_content_creator
+      class: districts.marketing.marketing_specialists.LinkedInContentCreator
+      model: vector-reasoning
+      description: LinkedIn content brief plus post length check
+      capabilities: [linkedin_content_brief, linkedin_post_check]
+
+    - name: livestream_commerce_coach
+      class: districts.marketing.marketing_specialists.LivestreamCommerceCoach
+      model: vector-reasoning
+      description: Livestream commerce brief; no deterministic check exists (verified=false)
+      capabilities: [livestream_commerce_brief, livestream_run_check]
+
+    - name: podcast_strategist
+      class: districts.marketing.marketing_specialists.PodcastStrategist
+      model: vector-reasoning
+      description: Podcast strategy brief; no deterministic check exists (verified=false)
+      capabilities: [podcast_strategy_brief, podcast_episode_check]
+
+    - name: private_domain_operator
+      class: districts.marketing.marketing_specialists.PrivateDomainOperator
+      model: vector-reasoning
+      description: Private-domain operations brief; no deterministic check exists (verified=false), consent basis required
+      capabilities: [private_domain_brief, private_domain_funnel_check]
+
+    - name: reddit_community_builder
+      class: districts.marketing.marketing_specialists.RedditCommunityBuilder
+      model: vector-reasoning
+      description: Reddit community brief plus post title length check (never posts)
+      capabilities: [reddit_community_brief, reddit_post_check]
+
+    - name: short_video_editing_coach
+      class: districts.marketing.marketing_specialists.ShortVideoEditingCoach
+      model: vector-reasoning
+      description: Short-video editing brief; no deterministic check exists (verified=false)
+      capabilities: [short_video_edit_brief, short_video_edit_check]
+
+    - name: tiktok_strategist
+      class: districts.marketing.marketing_specialists.TikTokStrategist
+      model: vector-reasoning
+      description: TikTok strategy brief plus caption length check
+      capabilities: [tiktok_strategy_brief, tiktok_caption_check]
+
+    - name: twitter_engager
+      class: districts.marketing.marketing_specialists.TwitterEngager
+      model: vector-reasoning
+      description: Twitter/X engagement brief plus post length check (never posts)
+      capabilities: [twitter_engagement_brief, twitter_post_check]
+
+    - name: video_optimization_specialist
+      class: districts.marketing.marketing_specialists.VideoOptimizationSpecialist
+      model: vector-reasoning
+      description: Video optimization brief plus title/description length and keyword-presence checks
+      capabilities: [video_optimization_brief, video_metadata_check]
+
+    - name: xiaohongshu_specialist
+      class: districts.marketing.marketing_specialists.XiaohongshuSpecialist
+      model: vector-reasoning
+      description: Xiaohongshu note brief plus title/body length and keyword-presence checks (needs native reviewer)
+      capabilities: [xiaohongshu_note_brief, xiaohongshu_note_check]
+
+    - name: zhihu_strategist
+      class: districts.marketing.marketing_specialists.ZhihuStrategist
+      model: vector-reasoning
+      description: Zhihu strategy brief; no deterministic check exists (verified=false), needs native reviewer
+      capabilities: [zhihu_strategy_brief, zhihu_answer_check]
+
+    - name: paid_media_auditor
+      class: districts.marketing.marketing_specialists.PaidMediaAuditor
+      model: vector-reasoning
+      description: Paid media audit brief plus account-export checks (spend without confirmed tracking or conversions)
+      capabilities: [paid_media_audit_brief, paid_media_account_check]
+
+    - name: paid_media_creative_strategist
+      class: districts.marketing.marketing_specialists.PaidMediaCreativeStrategist
+      model: vector-reasoning
+      description: Paid creative brief; no deterministic check exists (verified=false)
+      capabilities: [paid_creative_brief, paid_creative_check]
+
+    - name: paid_media_paid_social_strategist
+      class: districts.marketing.marketing_specialists.PaidMediaPaidSocialStrategist
+      model: vector-reasoning
+      description: Paid social brief plus per-ad-set frequency and CTR-decline checks
+      capabilities: [paid_social_brief, paid_social_metrics_check]
+
+    - name: paid_media_ppc_strategist
+      class: districts.marketing.marketing_specialists.PaidMediaPPCStrategist
+      model: vector-reasoning
+      description: PPC strategy brief plus per-campaign CPA/ROAS recomputation against supplied targets
+      capabilities: [ppc_strategy_brief, ppc_budget_check]
+
+    - name: paid_media_programmatic_buyer
+      class: districts.marketing.marketing_specialists.PaidMediaProgrammaticBuyer
+      model: vector-reasoning
+      description: Programmatic buying brief plus per-line-item viewability and invalid-traffic checks
+      capabilities: [programmatic_buy_brief, programmatic_inventory_check]
+
+    - name: paid_media_search_query_analyst
+      class: districts.marketing.marketing_specialists.PaidMediaSearchQueryAnalyst
+      model: vector-reasoning
+      description: Search query brief plus wasted-spend recomputation and negative keyword candidates from a search terms report
+      capabilities: [search_query_brief, search_query_waste_check]
+
+    - name: paid_media_tracking_specialist
+      class: districts.marketing.marketing_specialists.PaidMediaTrackingSpecialist
+      model: vector-reasoning
+      description: Tracking setup brief plus required-event coverage and pixel/server dedup (event_id) checks
+      capabilities: [tracking_setup_brief, tracking_event_check]
+
+  legal_compliance:
+    # 2026-09-29 SELF_DEV_P9_LEGAL_COMPLIANCE: advisory-only deterministic
+    # evidence checks; never execution or professional certification.
+    - name: healthcare_customer_service
+      class: districts.legal_compliance.legal_specialists.HealthcareCustomerServiceSpecialist
+      model: vector-reasoning
+      description: Patient-support evidence brief plus deterministic escalation, identity, language, and next-step checks
+      capabilities: [healthcare_service_brief, healthcare_service_check]
+
+    - name: healthcare_marketing_compliance
+      class: districts.legal_compliance.legal_specialists.HealthcareMarketingComplianceSpecialist
+      model: vector-reasoning
+      description: Healthcare-marketing brief plus deterministic phrase, scope, consent, de-identification, and citation checks
+      capabilities: [healthcare_marketing_brief, healthcare_marketing_check]
+
+    - name: legal_billing_time_tracking
+      class: districts.legal_compliance.legal_specialists.LegalBillingTimeTrackingSpecialist
+      model: vector-reasoning
+      description: Legal-billing evidence brief plus deterministic time-entry and invoice arithmetic checks
+      capabilities: [legal_billing_brief, legal_billing_check]
+
+    - name: legal_client_intake
+      class: districts.legal_compliance.legal_specialists.LegalClientIntakeSpecialist
+      model: vector-reasoning
+      description: Legal-intake brief plus deterministic required-field, conflict, scheduling, and deadline checks
+      capabilities: [legal_intake_brief, legal_intake_check]
+
+    - name: legal_document_review
+      class: districts.legal_compliance.legal_specialists.LegalDocumentReviewSpecialist
+      model: vector-reasoning
+      description: Legal-document brief plus deterministic required and prohibited clause-presence checks
+      capabilities: [legal_document_brief, legal_document_check]
+
+    # 2026-09-29 SELF_DEV_P8_MEMORY_FINANCE_OPS: same new district, merged here from a duplicate
+    # top-level `legal_compliance:` key the two packages' independent worktrees each created --
+    # YAML silently keeps only the last occurrence of a duplicate mapping key, which made this
+    # agent invisible to ManifestLoader until merged into one block. Advisory-only, gated, never
+    # a direct executor -- string-presence checks only, no legal advice rendered.
+    - name: legal_compliance_checker
+      class: districts.legal_compliance.legal_compliance_specialists.LegalComplianceChecker
+      model: vector-focus
+      description: Regulated-document clause-presence brief plus deterministic required/prohibited-phrase string-search check (advisory-only, not legal advice)
+      capabilities: [legal_compliance_brief, legal_compliance_check]
+
+  skills:
+    - name: skill_mapper
+      class: districts.skills.skill_mapper.SkillMapper
+      model: vector-reasoning
+      description: Skill graph construction and gap identification
+      capabilities: [skills, mapping, gaps]
+
+    - name: mastery_tracker
+      class: districts.skills.mastery_tracker.MasteryTracker
+      model: vector-focus
+      description: Skill mastery progression and plateau detection
+      capabilities: [skills, mastery, tracking]
+
+    # Cleanup batch (2026-06-22): run()-branching fix.
+    - name: gap_analyst
+      class: districts.skills.gap_analyst.GapAnalyst
+      model: vector-reasoning
+      description: Skill gap analysis, prioritization, and learning-path suggestion
+      # 2026-10-31: "skill_gap" is the exact task_type governor.py's
+      # DISTRICT_TASK_MAP routes to this district -- missing here meant
+      # declarative_manifest.py's instantiate_all() (which OVERWRITES
+      # instance.capabilities from this list, not merges -- see its own
+      # code comment) silently discarded the real fix already landed in
+      # gap_analyst.py's own __init__, so governor.dispatch() still never
+      # found a capability match and fell to the HP-lottery winner
+      # (SkillMapper) instead. Confirmed live via /command.
+      capabilities: [analyze_gaps, prioritize_gaps, suggest_learning_path, skill_gap]
+
+  # Audit finding 2026-06-21: ops/qa/personal_growth/chief_of_staff/science had
+  # ZERO manifest entries — governor.dispatch() silently substituted a no-op
+  # AgentBase stub (returning fake status="ok" + awarding +50 HP) for every
+  # task routed to these districts, even though real, well-engineered agent
+  # code already existed in each district's folder. Registered below.
+  ops:
+    - name: ops_swarm
+      class: districts.ops.agent.OpsSwarm
+      model: vector-reasoning
+      description: Orchestrator that auto-loads and routes across DevOpsAutomator, ErrorClassifier, IncidentCommander, SREMonitor by task-type keyword match
+      capabilities: [slo, uptime, incident, deploy, devops, monitor_system, backup, restart, post_mortem, classify_error, error_type, retry_check]
+
+    # 2026-09-29 SELF_DEV_P8_MEMORY_FINANCE_OPS: 7 evidence-checked specialists
+    # (districts/ops/ops_specialists.py) for personas with no existing real match anywhere in
+    # VECTOR. <x>_brief reports evidence completeness; <x>_check recomputes deterministically
+    # (date math, dict-key merge, string checks) -- no LLM
+    # call in any agent here. See the report for personas NOT built (already-real matches in other
+    # districts, or no honest deterministic check).
+    - name: hr_onboarding_specialist
+      class: districts.ops.ops_specialists.HROnboardingSpecialist
+      model: vector-focus
+      description: HR onboarding brief plus required-checklist-item completion check
+      capabilities: [hr_onboarding_brief, hr_onboarding_check]
+
+    - name: jira_workflow_steward
+      class: districts.ops.ops_specialists.JiraWorkflowSteward
+      model: vector-focus
+      description: Jira workflow-steward brief plus supplied transition-history validity check against a supplied allowed-transition graph
+      capabilities: [jira_workflow_brief, jira_workflow_check]
+
+    - name: project_shepherd
+      class: districts.ops.ops_specialists.ProjectShepherd
+      model: vector-focus
+      description: Project-shepherd brief plus overdue/at-risk milestone detection from supplied due dates
+      capabilities: [project_shepherd_brief, project_shepherd_check]
+
+    - name: support_responder
+      class: districts.ops.ops_specialists.SupportResponder
+      model: vector-focus
+      description: Support-response brief plus required-section completeness check on a drafted reply
+      capabilities: [support_response_brief, support_response_check]
+
+    - name: data_consolidation_agent
+      class: districts.ops.ops_specialists.DataConsolidationAgent
+      model: vector-focus
+      description: Data-consolidation brief plus key-field merge across supplied record sets with field-conflict detection
+      capabilities: [data_consolidation_brief, data_consolidation_check]
+
+    - name: report_distribution_agent
+      class: districts.ops.ops_specialists.ReportDistributionAgent
+      model: vector-focus
+      description: Report-distribution brief plus recipient-address and report-format validation (never sends or distributes anything)
+      capabilities: [report_distribution_brief, report_distribution_validate]
+
+    - name: corporate_training_designer
+      class: districts.ops.ops_specialists.CorporateTrainingDesigner
+      model: vector-focus
+      description: Corporate-training curriculum brief plus module structure check (non-empty, unique, has an assessment)
+      capabilities: [training_design_brief, training_outline_check]
+
+  qa:
+    - name: qa_swarm
+      class: districts.qa.agent.QASwarm
+      model: vector-reasoning
+      description: Orchestrator that auto-loads and routes across all 11 QA specialist agents by task-type keyword match, LLM fallback if none match
+      capabilities: [reality_check, evidence, map_workflow, verify_output, qa_check, test_analysis, api_health, api_test, accessibility, wcag, tool_evaluate, workflow_optimize, model_qa, ml_audit, silent_failure, swallowed_error, write_tests, test_coverage, tdd]
+
+  personal_growth:
+    - name: behavioral_nudge_engine
+      class: districts.personal_growth.behavioral_nudge_engine.BehavioralNudgeEngine
+      model: vector-focus
+      description: Detects procrastination/context, generates cooldown-respecting behavioral nudges
+      capabilities: [nudge, motivation]
+
+    - name: feedback_synthesizer
+      class: districts.personal_growth.feedback_synthesizer.FeedbackSynthesizer
+      model: vector-reasoning
+      description: Synthesizes feedback signals from memory + Obsidian vault notes
+      capabilities: [feedback, synthesize_feedback]
+
+    - name: zk_steward
+      class: districts.personal_growth.zk_steward.ZKSteward
+      model: vector-reasoning
+      description: Zettelkasten vault scan — concept extraction, backlinks, MOC updates
+      capabilities: [zettelkasten, zk, knowledge_links]
+
+    # 2026-09-30 (owner-requested skills section for VECTOR, evidence-gated):
+    # converts vectorcode.src.reasoning_bank.PatternLearner's own stable, repeated-task
+    # patterns (already live in core/loop/decision_engine.py) into real SKILL.md files
+    # in data/vector_skills/. Deterministic threshold re-check + formatting only, no
+    # LLM judges eligibility. See VECTOR_TECHNICAL_KNOWLEDGE/ for the design writeup.
+    - name: skill_builder
+      class: districts.personal_growth.skill_builder.SkillBuilder
+      model: vector-focus
+      description: Builds real SKILL.md files from VECTOR's own stable, repeated-task patterns (PatternLearner)
+      capabilities: [learned_pattern_brief, learned_pattern_build]
+
+  chief_of_staff:
+    - name: chief_of_staff
+      class: districts.chief_of_staff.chief_of_staff.ChiefOfStaff
+      model: vector-reasoning
+      description: Executive briefs, escalation routing, consistency enforcement — real Obsidian writes, real HP economy
+      capabilities: [executive_brief, morning_brief, evening_brief, chief, coordinate, consistency_check]
+      notes: "subconscious_loop.py is a SEPARATE class, already wired directly via core/loop/cron_jobs.py's interval job (every 30min) — not registered here, would be a redundant second invocation path."
+
+    - name: product_trend_researcher
+      class: districts.chief_of_staff.product_agents.ProductTrendResearcher
+      model: vector-reasoning
+      description: Source-backed market and competitive trend research with governed A2A handoffs to coding and marketing
+      capabilities: [product_trend_research]
+
+    - name: product_feedback_synthesizer
+      class: districts.chief_of_staff.product_agents.ProductFeedbackSynthesizer
+      model: vector-reasoning
+      description: Product-feedback theme synthesis from supplied signals
+      capabilities: [product_feedback_analysis]
+
+    - name: product_manager_chief_of_staff
+      class: districts.chief_of_staff.product_agents.ProductManager
+      model: vector-reasoning
+      description: Product requirements and transparent RICE scoring
+      capabilities: [product_requirements]
+
+    - name: product_sprint_prioritizer
+      class: districts.chief_of_staff.product_agents.ProductSprintPrioritizer
+      model: vector-reasoning
+      description: Reproducible RICE ranking for sprint candidates
+      capabilities: [product_sprint_ranking]
+
+    - name: product_behavioral_nudge_engine
+      class: districts.chief_of_staff.product_agents.ProductBehavioralNudgeEngine
+      model: vector-focus
+      description: Product-work nudge recommendation without external delivery
+      capabilities: [product_work_nudge]
+
+    # 2026-09-29: relocated from security -- SELF_DEV_AGENT_SPEC.md's own district map places
+    # slack-archaeologist under chief_of_staff (alongside orchestrator/planner/context-loader/
+    # cross-linker/brag-spotter/people-profiler/product-*/review-*), a placement error found and
+    # corrected on re-reading the spec's own map.
+    - name: slack_archaeologist
+      class: districts.chief_of_staff.slack_archaeologist.SlackArchaeologist
+      model: vector-focus
+      description: Deterministic Slack-history reconstruction for incident reconstruction and evidence gathering
+      capabilities: [slack_archaeology_brief, slack_archaeology_check]
+
+  science:
+    - name: science_agent
+      class: districts.science.science_agent.ScienceAgent
+      model: vector-reasoning
+      description: Physics/chemistry simulation, CAD, causal queries, what-if experiments
+      capabilities: [simulate, physics, chemistry, cad, molecule, causal_query, what_if, experiment, science]
+
+  # Task A.2 (2026-06-21): communications/ had ZERO manifest entries — same
+  # zero-agent-district gap pattern as ops/qa/personal_growth/chief_of_staff/
+  # science were before the earlier 2026-06-21 fix.
+  communications:
+    - name: email_agent
+      class: districts.communications.email_agent.EmailAgent
+      model: vector-focus
+      description: Full email client agent — local SQLite storage + AI drafting
+      capabilities: [email, email_client]
+
+    - name: email_intelligence
+      class: districts.communications.email_intelligence.EmailIntelligence
+      model: vector-reasoning
+      description: Converts raw email threads into structured, reasoning-ready VECTOR context
+      capabilities: [email_intelligence, email_parsing]
+
+  # Task A.2 (2026-06-21): doc_generator/technical_writer physically live in
+  # districts/qa/ but their own __init__ hardcodes district="documentation"
+  # (a real, separate bonus district per phase_status.md history — "VECTOR
+  # documents itself" — that never got its own districts/documentation/
+  # folder). get_by_district() filters on the INSTANCE's real .district
+  # attribute, not this YAML key, so grouping them under qa: would have been
+  # silently inert — confirmed core/api/routers/documentation.py's 4 routes
+  # (api_reference/generate_docs/generate_changelog/weekly_summary) dispatch
+  # via governor with no "district" key, falling through route_task() to
+  # _llm_classify(), whose candidate list is `set(DISTRICT_TASK_MAP.values())`
+  # — which had zero "documentation" entries, so "documentation" wasn't even
+  # offered as a choice. Fixed both ends: this section + 4 new
+  # DISTRICT_TASK_MAP keys in core/city/governor.py.
+  documentation:
+    - name: doc_generator
+      class: districts.qa.doc_generator.DocGenerator
+      model: vector-reasoning
+      description: Creates structured documents — weekly summaries, changelogs, district reports
+      capabilities: [weekly_summary, generate_changelog, district_report]
+
+    - name: technical_writer
+      class: districts.qa.technical_writer.TechnicalWriter
+      model: vector-reasoning
+      description: Auto-generates developer documentation for VECTOR's own modules
+      capabilities: [generate_docs, api_reference, technical_writing]
+
+  # 2026-07-30 audit fix: emergency/home_assistant/growth were all real, working
+  # (or partially working) code with ZERO manifest entry and ZERO
+  # DISTRICT_TASK_MAP-reachable agent — confirmed dead/unreachable via chat or
+  # API despite real implementations existing on disk. See core/city/governor.py
+  # DISTRICT_TASK_MAP for the matching new task_type keys.
+  emergency:
+    - name: emergency_response
+      class: districts.emergency.main.EmergencyResponseSystem
+      model: vector-focus
+      description: Signal-driven personal emergency detection (health/security/system/network/disk/battery) with severity classification, runbook execution, and escalation. Also directly queryable/reportable via chat.
+      capabilities: [emergency, emergency_alert, escalate_emergency, runbook, detect_anomaly, classify_emergency]
+
+  home_assistant:
+    - name: home_assistant_agent
+      class: districts.home_assistant.agent.HomeAssistantAgent
+      model: vector-focus
+      description: Natural-language Home Assistant control (lights/locks/climate/covers/alarm) via REST+WS, with fuzzy entity matching and confirmation gating on high-risk domains (locks/alarms/gates/garage/cameras). Requires HASS_URL/HASS_TOKEN to be configured.
+      capabilities: [home_control, smart_home, ha_status]
+
+  growth:
+    - name: growth_agent
+      class: districts.growth.agent.GrowthAgent
+      model: vector-focus
+      description: Status/reporting front door for the background growth engine (ARM A content, ARM B software-factory placeholder)
+      capabilities: [growth_status]
